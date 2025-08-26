@@ -1,0 +1,22 @@
+{
+  "name": "ECIDCODES-Minimal",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "platform": "linux/amd64",
+
+  "settings": {
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "python.defaultInterpreterPath": "/workspace/.venv/bin/python"
+  },
+
+  "extensions": [
+    "ms-python.python",
+    "ms-toolsai.jupyter"
+  ],
+
+  "remoteUser": "root",
+
+  "postCreateCommand": "bash -c 'source .venv/bin/activate && pip install -U pip'"
+}
