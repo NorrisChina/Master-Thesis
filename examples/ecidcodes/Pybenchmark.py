@@ -1,13 +1,10 @@
-#! /workspace/.venv/bin/python3
-#'/workspace/.venv/lib/python3.12/site-packages/idcodes/__init__.py'
-#/workspace/.venv/bin/python3
 import argparse
 import time
 import math
 import csv
 import os
 from datetime import datetime
-from idcodes.idcodes import IDCODES_U8, IDCODES_U16, IDCODES_U32, IDCODES_U64
+from ecidcodes.idcodes import IDCODES_U8, IDCODES_U16, IDCODES_U32, IDCODES_U64
 
 from collections import defaultdict
 
@@ -125,7 +122,6 @@ def idcode_exec(
                 f"Running RSID encoding with vec_len={vec_len}, tag_pos={tag_pos}, gf2_exp={gf2_exp}"
             )
             symbol_rs = Id.rsid(message, tag_pos, exp_arr, log_arr, gf2_exp)
-            print(f"RSID tag: {symbol_rs}")
         elif encoder == "RS2ID":
             print(
                 f"Running RS2ID encoding with vec_len={vec_len}, tag_pos={tag_pos}, tag_pos_in={tag_pos_in}, gf2_exp={gf2_exp}"
@@ -140,23 +136,19 @@ def idcode_exec(
                 log_arr_in,
                 gf2_exp,
             )
-            print(f"RS2ID tag: {symbol_rs2}")
         elif encoder == "RMID":
             print(
                 f"Running RMID encoding with vec_len={vec_len}, tag_pos={tag_pos}, rm_order={rm_order}, gf2_exp={gf2_exp}"
             )
             symbol_rm = Id.rmid(message, tag_pos, rm_order, exp_arr, log_arr, gf2_exp)
-            print(f"RMID tag: {symbol_rm}")
         elif encoder == "SHA1ID":
             print(f"Running SHA1ID encoding with vec_len={vec_len}, gf2_exp={gf2_exp}")
             sha1id_code = Id.sha1id(message, gf2_exp)
-            print(f"SHA1ID tag: {sha1id_code}")
         elif encoder == "SHA256ID":
             print(
                 f"Running SHA256ID encoding with vec_len={vec_len}, gf2_exp={gf2_exp}"
             )
             sha256id_code = Id.sha256id(message, gf2_exp)
-            print(f"SHA256ID tag: {sha256id_code}")
         else:
             print("Invalid encoder!")
             return

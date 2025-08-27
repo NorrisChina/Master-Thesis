@@ -14,3 +14,5 @@ __pycache__/
 # Logs & data
 *.log
 *.csv
+*.deb
+*.whl
