@@ -1,0 +1,98 @@
+% ===============================================
+% ===============================================
+% LaTeX Thesis Template
+%
+% Author: Julian Ha
+% E-Mail: Julian.Haase@tu-dresden.de
+% Date: 14.05.2018
+% Please contact the author in case of questions.
+% ===============================================
+% ===============================================
+%
+%
+% ===============================================
+%	Include Header File --- all LaTeX definitions stand here
+% ===============================================
+\input{header}
+% ===============================================
+%	Symbols and acropnyms for the glosseries package
+% ===============================================
+%\input{symbols}
+\input{acronyms}
+
+\begin{document}
+% ===============================================
+%	Title Page
+% ===============================================
+\pagenumbering{Alph} % Alphanumeric (capital) numbering for the PDF starting with A
+% Custom titlepage from the TU Dresden class requires the TUD class
+% which isn't installed in the container. Commenting out to allow compilation
+% with the standard KOMA-Script class (temporary).
+\include{titlepage}
+% ===============================================
+% Task description page
+% ===============================================
+\includepdf[pages=-,pagecommand={}]{Task_Description_Chongyang_Zheng}
+\bookmark[page=2]{Task Description Chongyang Zheng}
+% ===============================================
+%	Confirmation
+% ===============================================
+% The following uses TUD-specific macros; comment out for now.
+\confirmation[supporter=Juan A. Cabrera\and Caspar von Lengerke,pagestyle=empty.tudheadings]
+\bookmark[page=3]{Selbstständigkeitserklärung}
+% ===============================================
+% Abstract (omitted temporarily: uses TUD-specific macros)
+% ===============================================
+\include{abstract}
+%\bookmark[page=4]{Kurzfassung/Abstract}
+
+\pagenumbering{Roman} % Roman numbering for the PDF starting with I
+% ===============================================
+%	Table of contents
+% ===============================================
+\tableofcontents
+\clearpage
+% ===============================================
+%	Table of figures
+% ===============================================
+\listoffigures
+\clearpage
+% ===============================================
+%	Table of tables
+% ===============================================
+\listoftables
+\clearpage
+% ===============================================
+%	Table of listings
+% ===============================================
+%
+% ===============================================
+%	Table of acronyms
+% ===============================================
+% \glsaddall
+\printacronyms[style=acrotabularx,title={Acronyms}]
+\clearpage
+
+\pagenumbering{arabic} % arabic numbering for the PDF starting with 1
+% ===============================================
+%	Start of mainmatter - chapter 1 and so on...
+% ===============================================
+% examples chapter removed
+\include{chapters/1_Introduction}
+\include{chapters/2_Related_Work}
+\include{chapters/3_Design_Methodology}
+\include{chapters/4_Implementation}
+\include{chapters/5_Results_and_Evaluation}
+\include{chapters/6_Conclusion_and_Future_work}
+
+\appendix
+% ===============================================
+%	The bibliography
+% ===============================================
+\printbibliography[heading=bibintoc]%
+% ===============================================
+%	The real appendix :D
+% ===============================================
+\include{appendix/appendix}
+		
+\end{document}

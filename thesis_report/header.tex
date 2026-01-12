@@ -1,0 +1,330 @@
+% !TEX root = thesis.tex
+% ===============================================
+% ===============================================
+% 	LaTeX Header File - Defines all used packages and options
+% ===============================================
+% ===============================================
+%
+%
+% ===============================================
+% A. DOCUMENT CLASS (options and packets to use)
+% ===============================================
+\RequirePackage{hyphsubst}	% better german hyphenation rules
+\documentclass[
+	paper		= a4,	% Use A4 paper
+	english,
+%	ngerman,
+	BCOR=4mm,		% Additional border for binding the document
+	% BCOR depending on the number of pages
+	% Bei 80g/m^2 Papier
+	% 160 Seiten --> 8mm
+	% 140 Seiten --> 7mm
+	% 120 Seiten --> 6mm
+	% ..
+	% 60 Seiten --> 3mm
+	% 40 Seiten --> 2mm
+	% Bei 100g/m^2 Papier
+	% 150 Seiten --> 9mm
+	% 133 Seiten --> 8mm
+	% 117 Seiten --> 7mm
+	% 100 Seiten --> 6mm
+	% 83 Seiten --> 5mm
+	% 67 Seiten --> 4mm
+	% 50 Seiten --> 3mm
+	DIV=13,								% Proportion for empty and non-empty parts of a page
+	%twoside,
+	titlepage,							% Support for title environment
+	tudfonts=false,					% Do not use the TUD font (not installed in container)
+	headinclude		= true,				% Include header in typearea calculation
+	footinclude		= false,			% Include footer in typearea calculation
+	twoside			= false,			% Two-sided printing - true or false
+	%cleardoublepage         = empty,	% Empty backsides for two-sided printing
+	numbers 		= noenddot,			% Numbers (in headlines) without ending points
+	parskip			= half,				% A half line to separate paragraphs
+	chapterprefix	= false,			% Chapters with Prefix - true or false?
+	appendixprefix	= false,			% Appendix with Prefix - true or false?
+	headsepline,						% Line after header
+	%headings 		= normal,			% Size of Headers (normal, small, big)
+	bibliography	= totoc,			% Include Bibliography in Table of Contents
+	listof 			= totoc,			% Include Lists in Table of Contents
+	pagesize		= pdftex			% Define Typearea for pdftex usage
+]{tudscrreprt} 				% use TU Dresden KOMA-Script report class
+% Allow inclusion of newer PDF versions (e.g., 1.7) without warnings
+\pdfminorversion=7
+\usepackage{scrhack}	% includes koma script patches for other packages
+% ===============================================
+%	Character coding and fonts for the document
+% \usepackage[default,scale=0.95]{opensans}	% font for the CD
+\usepackage[utf8]{inputenc} % UTF-8 Support
+\usepackage{lmodern} % scalable Latin Modern fonts
+\usepackage[T1]{fontenc} % T1 Fonts for font encoding
+\usepackage[english]{babel} % English language
+\usepackage[babel]{microtype} % better layout of the text
+% ===============================================
+%	Package for quotation marks
+% ===============================================
+%\usepackage[babel=false, style=swiss]{csquotes}		% Swiss style quotes
+%\usepackage[babel=false, german=quotes]{csquotes}		% German style quotes
+\usepackage[babel=false, english=american]{csquotes}	% American style quotes
+%\usepackage[babel=false, german=quotes]{csquotes}		% German style quotes
+% ===============================================
+%	Packages for additional table features
+% ===============================================
+\usepackage{array}			% Additional commands for tables
+\usepackage{tabularx}		% Automatic row wide with special parameter
+\usepackage{booktabs}		% Packet for scientific table environments
+\usepackage{longtable}		% Support for tables over multiple pages
+\usepackage{multirow}		% Support for spanning cells over multiple rows
+\usepackage{longtable}		% For tables longer than one site
+\usepackage{ltxtable}		% use X column from tabularx in longtable
+\usepackage{tabu}		% For the symbol table only
+% ===============================================
+%	Packages for additional mathemtical features
+% ===============================================
+\usepackage{amsmath, amsthm, amssymb}	% ASM Mathematic packages
+\usepackage{pifont}						% used for circled numbers
+\usepackage{siunitx}					% Numbers with nice untis
+% ===============================================
+%	Packages for figures and captions
+% ===============================================
+\usepackage{pdfpages}	% Einbinden von PDF als komplette Seite
+\usepackage{graphicx}	% Einbinden von Bildern
+\usepackage{caption}	% Packet to support captions for subfigures
+\usepackage{subcaption}	% Packet to support subfigure environments
+%\renewcommand\thesubfigure{(\alph{subfigure})}% für Klammern bei Referenz der Subfigure(z. B. Abbildung 3.1(a))
+% ===============================================
+%	Additional packages
+% ===============================================
+\usepackage{isodate}			% for several date formats
+\usepackage{xcolor}				% Packet for colour text support
+\usepackage{enumitem}			% Alternitive Item environment for customizing lists
+\usepackage{flafter}			% Never insert figures before the actual reference
+\usepackage[section]{placeins}	% Insert floatbarriers before every section
+\usepackage{ellipsis}			% Corrects wrong spaces after dots
+\usepackage{blindtext}
+\usepackage{listings}
+\usepackage{tabularx}
+\usepackage{geometry}
+\usepackage{makecell} % 用于单元格内换行
+
+% \usepackage[acronym]{glossaries}
+% \makeglossaries
+
+%\usepackage{easy-todo}			% for colored Todo-Notes in the PDF
+% ===============================================
+%	Packages for references and citation
+% ===============================================
+\usepackage[%
+	backend=biber,		% for sorting the entries and citing information with UTF-8 support
+	style=numeric,	% style for citation
+	url=false,			% url-field of the bib is not printet in the references
+	maxalphanames=1,	%
+	maxcitenames=1,		%
+	]%
+{biblatex}	%
+\addbibresource{bib/references.bib}	% Adding the bib-file to reference, if need more copy this command
+% ===============================================
+%	Packages for special PDF features and References
+% ===============================================
+\usepackage[%
+	pdfauthor={Julian Haase},			%
+	pdftitle={Titel der Arbeit},		%
+	pdfsubject={XXX Thesis},			%
+	pdfkeywords={},						%
+	pdfcreator={PdfLaTeX},				%
+	pdfproducer	={LaTeX with hyperref},	%
+	breaklinks=true,	%
+	colorlinks=true,	%
+	% 	PDF-options for PRINT OUT of the document
+	%	urlcolor=black,     %
+	%	citecolor=black,    %
+	%	linkcolor=black,    %
+	%	filecolor=black,	%
+	% 	PDF-options for PDF file creation (e.g. coloured links)
+	urlcolor=blue,      %
+	citecolor=red,      %
+	linkcolor=blue,     %
+	filecolor=blue,		%
+	bookmarks,				%
+	bookmarksopen,			%
+	bookmarksopenlevel=1,	%
+	bookmarksnumbered,		%
+	pdfpagelabels,			%
+	pdfdisplaydoctitle, 	%
+	pdfpagemode=UseOutlines,%
+	linktoc=all, 			%
+	]%
+{hyperref}%
+\usepackage[%
+	open,			%
+	openlevel=2, 	%
+	]%
+{bookmark}%
+\usepackage[nameinlink,noabbrev]{cleveref} % simpler refs with \cref
+% ===============================================
+%	Packages for glossary (acronyms, symbols, etc.)
+% ===============================================
+\usepackage[%
+	acronym,%
+	symbols,%
+	nomain,%
+	nogroupskip,%
+	toc,%
+	section=chapter,%
+	nostyles,%
+	translate=babel,%
+	xindy={language=german-din},%
+	% automake,
+]{glossaries}
+\makeglossaries
+%
+%
+% ===========================================================================
+% B. SETTINGS (for the document and the packages)
+% ===========================================================================
+\pagestyle{headings}	% Headers with page title
+\frenchspacing			% Limit the spacing after dots
+\sisetup{locale = DE}	% german untis
+%
+%
+% ===========================================================================
+% C. NEW MAKROS AND ENVIRONMENTS (for later use in the document)
+% ===========================================================================
+%
+% ===============================================
+%	New Columtyps
+% ===============================================
+\newcolumntype{Y}{>{\centering\arraybackslash}X} % centered X columns for tablurarx
+% ===============================================
+%	\includegraphicstotab[..]{..}
+% ===============================================
+\newlength{\myx} % Saving the width of the figure
+\newlength{\myy} % Saving the height of the figure
+\newcommand\includegraphicstotab[2][\relax]{%
+	% save the figure values
+	\settowidth{\myx}{\includegraphics[{#1}]{#2}}%
+	\settoheight{\myy}{\includegraphics[{#1}]{#2}}%
+	% insert into to the cell of the table
+	\parbox[c][1.1\myy][c]{\myx}{%
+		\includegraphics[{#1}]{#2}}%
+}%
+% ===============================================
+%	New Citation-Style [FirstAuthor Year]
+% ===============================================
+\renewcommand*{\labelalphaothers}{} %
+\DeclareLabelalphaTemplate{%
+	\labelelement{%
+		\field[final]{shorthand}%
+		\field{labelname}%
+		\field{label}%
+	}
+	\labelelement{%
+		\literal{\addhighpenspace}%
+	}
+	\labelelement{%
+		\field{year}%
+	}
+}
+% ===============================================
+%	\newsymbol{label}{description}{symbol}{unit}
+% ===============================================
+\renewcommand*{\newsymbol}[5][]{%
+	\newglossaryentry{#2}{%
+		type=symbols,%
+		name={#3},%
+		description={\nopostdesc},%
+		symbol={\ensuremath{#4}},%
+		user1={\ensuremath{\mathrm{#5}}},%
+		sort={#2},%
+		#1%
+	}%
+}
+\defglsentryfmt[symbols]{%
+	\ifmmode%
+	\glssymbol{\glslabel}%
+	\else%
+	\glsgenentryfmt~\glsentrysymbol{\glslabel}%
+	\fi%
+}
+% ===============================================
+%	Symbol table style for the glossary
+% ===============================================
+\newglossarystyle{symblongtabu}{%
+	\renewenvironment{theglossary}{%
+		\begin{longtabu}spread 0pt[l]{ccX<{\strut}l}%
+		}{%
+		\end{longtabu}%title
+	}%
+	\renewcommand*{\glsgroupheading}[1]{}%
+	\renewcommand*{\glsgroupskip}{}%
+	\renewcommand*{\glossaryheader}{%
+		\toprule
+		\bfseries Formelzeichen & \bfseries Einheit &
+		\bfseries Bezeichnung & \bfseries Seite(n)
+		\tabularnewline\midrule\endhead%
+		\bottomrule\endfoot%
+	}%
+	\renewcommand*{\glossentry}[2]{%
+		\glsentryitem{##1}% Entry number if required
+		\glstarget{##1}{\glossentrysymbol{##1}} &
+		\glsentryuseri{##1} &
+		\glossentryname{##1} &
+		##2\tabularnewline%
+	}%
+}
+% ===============================================
+%	Acronym table style for the glossary
+% ===============================================
+\newglossarystyle{acrotabularx}{%
+	\renewenvironment{theglossary}{%
+		\tabularx{\linewidth}{@{}lXl@{}}%
+	}{%
+		\endtabularx\par\bigskip%
+	}%
+	\renewcommand*{\glossaryheader}{}%
+	\renewcommand*{\glsgroupheading}[1]{}%
+	\renewcommand*{\glsgroupskip}{}%
+	\renewcommand*{\glossentry}[2]{%
+		\glsentryitem{##1}% Entry number if required
+		\glstarget{##1}{\sffamily\bfseries\glossentryname{##1}} &
+		\glsentrydesc{##1} &
+		##2\tabularnewline
+	}
+}
+% ===============================================
+%	Macros for fixme entries etc.
+% ===============================================
+% Macro for fixme entries
+\newcommand{\fixme}[1]{\textcolor{blue}{FIXME: #1}}
+% Macro for change entries
+\newcommand{\change}[1]{\textcolor{green}{CHANGE: #1}}
+% Macro for remark entries
+\newcommand{\remarks}[1]{\textcolor{magenta}{REMARKS: #1}}
+\newcommand{\re}{\textcolor{cyan}{\textbf{[ref]}}}
+% A Makro to support rephrase suggestions
+% use as follows: rephrase{original}{new(suggestion)}{reason}, for no reason leave last argument empty!
+\definecolor{darkgreen}{rgb}{0.0,0.6,0.0}
+\newcommand{\rephrase}[3]{\textcolor{red}{#1}\footnote{REPHRASE: #3} \textcolor{darkgreen}{#2}}
+% ===============================================
+%	Placeholder for figures
+% ===============================================
+\newcommand{\missingfigure}[2][]{%
+	\par
+	\noindent
+	\begin{tikzpicture}
+	\draw[fill=black!40, draw = white, line width=0pt](-2, -2.5) rectangle +(\columnwidth, 4cm);
+	\draw (2, -0.3) node[right, text width=\columnwidth-4.5cm] {#2};
+	\draw[red, fill=white, rounded corners = 5pt, line width=10pt](30:2cm) -- (150:2cm) -- (270:2cm) -- cycle;
+	\draw (0, 0.3) node {Missing};
+	\draw (0, -0.3) node {Figure};
+	\end{tikzpicture}
+}% Ending \missingfigure command
+%
+%
+% ===========================================================================
+% D. ACTIONS AND OPERATIONS
+% ===========================================================================
+%
+% ===========================================================================
+% EOF
+% ===========================================================================

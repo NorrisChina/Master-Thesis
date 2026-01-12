@@ -1,0 +1,186 @@
+\chapter{Design Methodology}
+\label{sec:design_methodology}
+
+\section{Overview}
+This chapter gives the modeling and experimental methodology used to evaluate identification (ID) and its extension to K‑Identification (K‑ID). It defines the latency and traffic models, the measurement protocols used to obtain per‑operation compute times, and the Monte‑Carlo procedures used to estimate rare false‑accept/miss probabilities. The goal is to state assumptions and reproducible procedures so that results in Chapter~\ref{sec:results_and_evaluation} can be reproduced from the provided scripts and data.
+
+\section{Notation and Goals}
+We study systems that implement a short verifier (tag) check and an optional bulk transfer upon mismatch. The central quantities are:
+\begin{itemize}
+	\item $L_{\text{ver}}$: verifier/tag length (bits);
+	\item $L_{\text{data}}$: payload length (bits), equivalently $n_{\text{data}}$ in bytes where noted;
+	\item $p_{\text{desync}}$: probability that the receiver's stored state is desynchronized and hence bulk transfer is required;
+	\item $p_{\text{miss}}$: per‑object false‑accept probability of the verifier (i.e., when a tag incorrectly accepts a different object); we will sometimes denote the empirically measured value as $\hat p_{\text{miss}}$ or $p_{\text{miss,emp}}$;
+	\item $T_{\text{encode}}$ and $T_{\text{verify}}$: wall‑clock compute times for one encode (sender) and one verify (receiver) operation, measured on the target platform.
+\end{itemize}
+
+The engineering objective is to quantify expected latency and traffic per object/query as functions of verifier length, number of verifications in a batch ($K$), and network bandwidth $B$.
+
+\section{Encoding Process}
+This section details the mathematical steps of the encoder families used in our evaluation and links them to the concrete implementations in the repository under \path{src/idsys/core/idsystems.py}.
+
+\subsection{SHA256ID}
+Given a message $M = (m_0,m_1,\dots,m_{n-1})$ of bytes, the SHA256ID encoder computes
+\[
+H = \mathrm{SHA256}(M) \in \{0,1\}^{256},
+\]
+and derives a tag by truncation to $e$ bits corresponding to the configured Galois-field exponent $e$:
+\[
+\mathrm{tag} = H[0:e] \in \{0,1\}^{e} \equiv \mathbb{F}_{2^e}\;\text{symbol},
+\]
+where $H[0:e]$ denotes the first $e$ bits of the digest. In our code, this is implemented by \texttt{SHA256IDEncoder.encode} which calls \texttt{idcodes.sha256id(message, gf\_exp)} and returns a single integer tag representing the $e$-bit truncation. Verification recomputes the same mapping and compares equality (\texttt{SHA256IDVerifier.verify}).
+
+\subsection{RSID}
+Let $e$ be the Galois-field exponent and $\mathbb{F}_{2^e}$ the finite field constructed by \texttt{idcodes.generate\_gf\_outer(e)}. We interpret the input bytes as field symbols $M = (x_0, x_1,\dots,x_{n-1}) \in \mathbb{F}_{2^e}^n$.
+
+RSID computes a Reed–Solomon codeword
+\[
+\mathbf{C} = (c_0,\dots,c_{n-1}) \in \mathbb{F}_{2^e}^n,\quad c_i = P(\alpha_i),
+\]
+by evaluating a polynomial $P(X)$ of degree $< k$ (message polynomial) at evaluation points $(\alpha_0,\dots,\alpha_{n-1})$ in $\mathbb{F}_{2^e}$. The RSID \emph{tag} is then the symbol at a configured position $t \in \{0,\dots,n-1\}$:
+\[
+\mathrm{tag}(M; t,e) = c_t = P(\alpha_t) \in \mathbb{F}_{2^e}.
+\]
+In practice, we use a compact implementation via the \texttt{idcodes} library: \texttt{RSIDEncoder.encode} iterates the configured positions \texttt{tag\_pos} and calls \texttt{idcodes.rsid(message, tag\_pos, gf\_exp)} to return one integer per position (each representing an $e$-bit field symbol). The verifier recomputes these symbols and checks equality across positions (\texttt{RSIDVerifier.verify}).
+
+Remarks:
+\begin{itemize}
+	\item The field initialization is performed by \texttt{get\_idcodes\_instance} and \texttt{generate\_gf\_outer(e)} for $e\leq16$ as seen in \texttt{RSIDEncoder}.
+	\item For multi-tag configurations, RSID returns a list of tags $(c_{t_1},\dots,c_{t_r})$; verification requires all positions to match.
+\end{itemize}
+
+\subsection{RS2ID}
+RS2ID is a concatenated Reed--Solomon construction that maps a byte message $M$ to a single tag by composing an inner RS mapping with an outer RS mapping. Let $e_0$ denote the base Galois-field exponent. The implementation uses an effective field size $2e_0$ for the concatenated symbol, i.e., arithmetic in $\mathbb{F}_{2^{2e_0}}$ for the outer layer, while the inner layer uses $\mathbb{F}_{2^{e_0}}$ symbols.
+
+Conceptually, the encoder forms an inner RS stream from $M$ and packs inner symbols into an outer message polynomial $P_{\text{out}}(X)$ over $\mathbb{F}_{2^{2e_0}}$. The RS2ID tag is the outer evaluation at a configured position $t_{\text{out}}$ with a configured inner position $t_{\text{in}}$ governing which inner evaluation participates in the packing:
+\[
+\mathrm{tag}(M; t_{\text{out}}, t_{\text{in}}, e_0) \,=\, P_{\text{out}}(\alpha^{\text{out}}_{t_{\text{out}}}) \in \mathbb{F}_{2^{2e_0}}.
+\]
+In code, \texttt{RS2IDEncoder.encode} returns a single integer tag by calling
+\[
+	exttt{idcodes.rs2id}(\,\textit{message},\, \textit{tag\_pos},\, \textit{tag\_pos\_in},\, \textit{gf\_exp}\,).
+\]
+Here \texttt{gf\_exp} is set to $2e_0$ internally. Field initialization follows the backend's requirements: for small exponents, both outer and inner fields are generated via \texttt{generate\_gf\_outer(.)} and \texttt{generate\_gf\_inner(.)}. Verification recomputes the tag with the same parameters and compares equality (\texttt{RS2IDVerifier.verify}).
+
+\section{Latency and Traffic Model}
+\label{sec:latency_analysis}
+We adopt a simple, separable latency model that decomposes total expected latency into compute and transfer components.\footnote{In our target scenario, the verify step is constant‑time and negligible relative to encode and network transfer; unless noted otherwise we set $T_{\text{verify}}\approx 0$ so the compute term reduces to $T_{\text{encode}}$. For completeness, Section~\ref{sec:latency_speedup} retains the general form with $T_{\text{verify}}$.} For a single verifier check (no batching), the expected latency when querying an object is
+\[
+L_{\text{total}} = T_{\text{comp}} + T_{\text{net}},
+\]
+where the compute term (with the simplifying assumption $T_{\text{verify}}\approx 0$) is
+\[ 
+T_{\text{comp}} = T_{\text{encode}}, 
+\]
+and the network term accounts for the short tag transfer and the conditional bulk transfer upon mismatch. Under a perfect (no‑loss) channel and assuming negligible tag size relative to $L_{\text{data}}$, we approximate the network contribution as
+\[
+T_{\text{net}} = \frac{n_{\text{ver}}}{B} + p_{\text{desync}}(1- p_{\text{miss}})\frac{n_{\text{data}}}{B},
+\]
+where $n_{\text{ver}}$ is the verifier size in bytes and $B$ is bandwidth in bytes/second. The first term models the (small) verifier transfer; the second term is the expected conditional bulk transfer cost (only when a true desync occurs and the verifier does not falsely accept). This formula matches the user formula used in our experiments and is the basis for the latency plots in Chapter~\ref{sec:results_and_evaluation}.
+
+\paragraph{Traffic model.}
+Following prior "stopping the dataflow" traffic analysis, the expected per‑message traffic (in bytes) can be written as
+\begin{equation}
+\label{eq:traffic_model}
+\mathrm{traffic} = n_{\mathrm{ver}} + p_{\mathrm{desync}}(1 - p_{\mathrm{miss}})\, n_{\mathrm{data}} + (1 - p_{\mathrm{desync}})\, p_{\mathrm{FA}}\, n_{\mathrm{data}},
+\end{equation}
+where $p_{\mathrm{FA}}$ denotes the false‑accept probability while remaining synchronized. Under the perfect‑channel assumption used in our experiments ($p_{\mathrm{FA}}=0$), this simplifies to
+\begin{equation}
+\label{eq:traffic_model_perfect}
+\mathrm{traffic} = n_{\mathrm{ver}} + p_{\mathrm{desync}}(1 - p_{\mathrm{miss}})\, n_{\mathrm{data}}.
+\end{equation}
+These traffic expressions directly induce the network term via division by throughput $B$ (i.e., $\mathrm{traffic}/B$), and are consistent with the latency formulation above.
+
+\paragraph{On the verification cost $T_{\text{verify}}$.}
+In our target setting, the verify step is a constant‑time check of a small tag (e.g., testing a hash key’s presence in a dictionary). Its cost is negligible compared to encode and network transfer. Hence for single‑object ID we approximate $T_{\text{verify}}\approx 0$ without affecting conclusions. For K‑ID, batch verify cost can be written $T_{\text{verify}}^{(K)}=\alpha+\beta K$, but each candidate’s check remains constant‑time and $(\alpha,\beta)$ are small in our implementation, making $T_{\text{verify}}^{(K)}$ negligible relative to $T_{\text{encode}}$ and the network term. We use this approximation in the results chapter and support it with measurements.
+
+For K‑ID (an OR over a set of size $K$), the OR‑aggregation changes the effective false‑accept rate. If per‑object false‑accept probability is $p$ and errors are approximately independent across objects, the false‑accept probability for the $K$‑set is
+\[
+\lambda_2^{(K)} = 1 - (1-p)^K \approx 1 - e^{-pK}.
+\]
+Hence, in a K‑verification batch, only when the batch fails to find the transmitted object is the costly bulk transfer required; the modeling in Section~\ref{sec:latency_analysis} uses $\lambda_2^{(K)}$ to compute the conditional bulk probability.
+
+\subsection{Baselines and Speedup Conditions}
+\label{sec:latency_speedup}
+We compare the expected latency of three reference schemes and derive simple thresholds.
+
+\paragraph{Always send full state (baseline).}
+Sending the payload every time yields
+\[
+L_{\text{full}} = \frac{n_{\text{data}}}{B},
+\]
+that is, we ignore baseline compute cost when transmitting full state.
+
+\paragraph{Single‑object ID.}
+As above,
+\[
+L_{\text{ID}} = T_{\text{encode}} + T_{\text{verify}} + \frac{n_{\text{ver}}}{B} + p_{\text{desync}}(1-p_{\text{miss}})\frac{n_{\text{data}}}{B}.
+\]
+ID is faster than always sending when $L_{\text{ID}} < L_{\text{full}}$, i.e.,
+\[
+T_{\text{encode}} + T_{\text{verify}} + \frac{n_{\text{ver}}}{B} \; < \; \Bigl[1 - p_{\text{desync}}(1-p_{\text{miss}})\Bigr]\frac{n_{\text{data}}}{B}.
+\]
+Equivalently, for a given platform and bandwidth, the maximum per‑query compute budget that still yields speedup is
+\[
+T_{\text{encode}} + T_{\text{verify}} \; < \; \Bigl[1 - p_{\text{desync}}(1-p_{\text{miss}})\Bigr]\frac{n_{\text{data}}}{B} - \frac{n_{\text{ver}}}{B}.
+\]
+
+\paragraph{K‑ID (batch OR over $K$ candidates).}
+Let $T_{\text{encode}}^{(K)}$ and $T_{\text{verify}}^{(K)}$ denote the batch encode/verify costs. In practice we observe $T_{\text{encode}}^{(K)}\!\approx T_{\text{encode}}$ (one tag per query) and $T_{\text{verify}}^{(K)}\!=\!\alpha + \beta K$ for constants $(\alpha,\beta)$ measured on the platform (per‑candidate inner‑loop cost). Let $q_{\text{hit}}$ be the probability at least one of the $K$ candidates truly matches (a semantic acceptance event). The expected latency becomes
+\[
+L_{\text{KID}} = T_{\text{encode}}^{(K)} + T_{\text{verify}}^{(K)} + \frac{n_{\text{ver}}}{B} + \underbrace{\bigl(1-q_{\text{hit}}\bigr)\bigl(1-\lambda_2^{(K)}\bigr)}_{\text{no hit and no false accept}}\frac{n_{\text{data}}}{B}.
+\]
+Relative to $K$ repeated single‑object checks (serial queries), batch K‑ID eliminates $K-1$ verifier round‑trips and $K-1$ encode/verify pairs, which is beneficial when
+\[
+T_{\text{verify}}^{(K)} + \frac{n_{\text{ver}}}{B} \; \ll \; K\Bigl(T_{\text{verify}} + \frac{n_{\text{ver}}}{B}\Bigr),
+\]
+and the increase in $\lambda_2^{(K)}$ (cf. $1-(1-p)^K$) still keeps the conditional bulk probability low in the operating regime. This inequality captures the typical edge case where computation and small messages dominate per‑query overheads.
+
+\section{Measurement Protocols}
+We measure compute times and false‑accept probabilities with the following reproducible protocols.
+
+\subsection{Compute time measurements}
+Compute times are measured using Python's \texttt{time.perf\_counter()} in a controlled experiment harness under \texttt{experiments/}. The harness supports these options that affect results and are explicitly recorded:
+\begin{itemize}
+	\item \textbf{Warmup}: perform $W$ warmup iterations before timed runs to let caches and JITs (if any) stabilize. We record runs with and without warmup to expose sensitivity.
+	\item \textbf{Pinning}: the process can be pinned to a single CPU core using \texttt{taskset} to reduce scheduling noise.
+	\item \textbf{Per‑iteration sampling}: we record either all iteration latencies or a sampled subset; percentiles (5/50/95) are reported.
+\end{itemize}
+
+All timing scripts output CSV rows with columns: \texttt{id\_system}, \texttt{n\_ver}, \texttt{n\_data}, \texttt{warmup}, \texttt{iteration}, \texttt{elapsed\_s} (or aggregated statistics). Example scripts: \texttt{experiments/measure\_encoder\_time.py} and \texttt{experiments/measure\_encoder\_time\_samples.py}.
+
+\subsection{False‑accept / Monte‑Carlo estimation}
+Estimating very small false‑accept probabilities requires Monte‑Carlo sampling of desynchronization events. The procedure is:
+\begin{enumerate}
+	\item Fix an ID configuration (encoder parameters, tag positions, $n_{\text{ver}}$).
+	\item Repeat $N$ trials: generate a random desync pattern (or select adversarial messages if doing worst‑case analysis), run the verifier against a non‑matching object, and record whether the verifier incorrectly accepts.
+	\item The empirical false‑accept probability is $\hat p = m/N$ where $m$ is the number of observed false accepts. We compute Wilson‑score 95\% confidence intervals for small $\hat p$ when needed.
+\end{enumerate}
+
+For configurations with extremely rare events (e.g., RSID with parameters that drive $p$ below $10^{-4}$), we run up to $N=10^6$ trials as budget allows. Scripts store raw counts and CSVs (see \texttt{experiments/results/fig2\_results.csv}).
+
+\section{Parameter Sweep and Plots}
+The experimental sweep varies these parameters to reproduce the baseline figures and to characterize latency:
+\begin{itemize}
+	\item Field/exponent parameters (e.g., RSID \texttt{gf\_exp} values mapping to \texttt{n\_ver} in bits), typically values corresponding to the 12 plotted points in Fig.2.
+	\item Verifier lengths $n_{\text{ver}}$ (bytes) and payload sizes $n_{\text{data}}$ (we report results for 96 bytes and 4001 bytes as representative small and large payloads).
+	\item Bandwidths $B\in\{1,10,100\}\ \text{Mbps}$ for latency curves (converted to bytes/s in code).
+\end{itemize}
+
+Plots produced in this chapter's experiments include:
+\begin{itemize}
+	\item False‑accept probability vs verifier length (reproduction of Fig.2).
+	\item Verification compute time vs verifier length.
+	\item Modeled expected latency vs $n_{\text{ver}}$ for multiple bandwidths and for $n_{\text{data}}=96$ and $4001$ (these appear in Chapter~\ref{sec:results_and_evaluation}).
+\end{itemize}
+
+\section{Reproducibility and Implementation Notes}
+All scripts and raw CSV outputs used to create figures are included under the \texttt{experiments/} directory. Key reproducibility notes:
+\begin{itemize}
+	\item The Python environment is an editable install of the repository; dependencies are recorded in \texttt{pyproject.toml} and the \texttt{venv} used is documented in the project README.
+	\item Native bindings (the \texttt{ecidcodes} package and \texttt{libIdcodesLibrary.so}) are required to run the ID encoders. If unavailable, the harness falls back to a pure‑Python stub for functional reproduction (see \path{src/idsys/core/common.py}).
+	\item For timing-sensitive microbenchmarks we recommend pinning the process and disabling frequency scaling where possible; the harness supports \texttt{taskset} and prints the CPU affinity used.
+\end{itemize}
+
+\section{Summary}
+This chapter states the latency model and the measurement protocols used across experiments. The model (compute + conditional bulk transfer) is intentionally simple yet captures the key trade‑off: reducing $p_{\text{miss}}$ by increasing verifier size or multiple tags reduces conditional bulk traffic but may increase compute latency. The next chapter presents experimental results that instantiate the model and quantify these tradeoffs on our platform.

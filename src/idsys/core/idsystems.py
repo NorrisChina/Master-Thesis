@@ -37,6 +37,7 @@ Example:
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from .common import *
+import numpy as np
 
 
 class IdEncoder(ABC):
@@ -258,9 +259,25 @@ class RSIDEncoder(IdEncoder):
         if not message:
             raise ValueError("Message cannot be empty")
             
+        # Determine appropriate dtype for GF tables based on gf_exp
+        if self.gf_exp <= 8:
+            gf_dtype = np.uint8
+        elif self.gf_exp <= 16:
+            gf_dtype = np.uint16
+        elif self.gf_exp <= 32:
+            gf_dtype = np.uint32
+        else:
+            gf_dtype = np.uint64
+        # Obtain GF lookup tables and convert to numpy arrays of correct dtype
+        exp_arr = np.asarray(self.idcodes.get_exp_arr(), dtype=gf_dtype)
+        log_arr = np.asarray(self.idcodes.get_log_arr(), dtype=gf_dtype)
+        # Map message symbols into valid GF range to avoid undefined behaviour
+        gf_range = 1 << self.gf_exp
+        msg_mod = [int(x) % gf_range for x in message]
+
         tags = []
         for tag_pos in self.parameters["tag_pos"]:
-            tags.append(self.idcodes.rsid(message, tag_pos, self.gf_exp))
+            tags.append(self.idcodes.rsid(msg_mod, tag_pos, exp_arr, log_arr, self.gf_exp))
         return tags
 
 
@@ -366,7 +383,32 @@ class RS2IDEncoder(IdEncoder):
         tag_pos = self.parameters["tag_pos"][0]  # Use first position only
         tag_pos_in = self.parameters["tag_pos_in"][0]  # Use first inner position only
         
-        result = self.idcodes.rs2id(message, tag_pos, tag_pos_in, self.gf_exp)
+        # Determine appropriate dtype for GF tables based on gf_exp (effective exponent)
+        if self.gf_exp <= 8:
+            gf_dtype = np.uint8
+        elif self.gf_exp <= 16:
+            gf_dtype = np.uint16
+        elif self.gf_exp <= 32:
+            gf_dtype = np.uint32
+        else:
+            gf_dtype = np.uint64
+
+        # Outer and inner GF tables
+        exp_arr = np.asarray(self.idcodes.get_exp_arr(), dtype=gf_dtype)
+        log_arr = np.asarray(self.idcodes.get_log_arr(), dtype=gf_dtype)
+        exp_arr_in = np.asarray(self.idcodes.get_exp_arr_in(), dtype=gf_dtype)
+        log_arr_in = np.asarray(self.idcodes.get_log_arr_in(), dtype=gf_dtype)
+
+        result = self.idcodes.rs2id(
+            message,
+            tag_pos,
+            tag_pos_in,
+            exp_arr,
+            log_arr,
+            exp_arr_in,
+            log_arr_in,
+            self.gf_exp,
+        )
         return result
 
 
@@ -465,10 +507,22 @@ class RMIDEncoder(IdEncoder):
             raise ValueError("Message cannot be empty")
             
         rm_order = self.parameters["rm_order"]
+
+        # Determine appropriate dtype for GF tables based on gf_exp
+        if self.gf_exp <= 8:
+            gf_dtype = np.uint8
+        elif self.gf_exp <= 16:
+            gf_dtype = np.uint16
+        elif self.gf_exp <= 32:
+            gf_dtype = np.uint32
+        else:
+            gf_dtype = np.uint64
+        exp_arr = np.asarray(self.idcodes.get_exp_arr(), dtype=gf_dtype)
+        log_arr = np.asarray(self.idcodes.get_log_arr(), dtype=gf_dtype)
+
         tags = []
-        
         for tag_pos in self.parameters["tag_pos"]:
-            tags.append(self.idcodes.rmid(message, tag_pos, rm_order, self.gf_exp))
+            tags.append(self.idcodes.rmid(message, tag_pos, rm_order, exp_arr, log_arr, self.gf_exp))
         return tags
 
 

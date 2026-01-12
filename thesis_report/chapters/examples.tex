@@ -1,0 +1,83 @@
+% % !TEX root = thesis.tex
+% % ===============================================
+% % ===============================================
+% % 	LaTeX Chapter File - Main Text
+% % ===============================================
+% % ===============================================
+% \chapter{Latex syntax examples}
+
+% \textcolor{red}{This chapter must be removed in the final version to be printed.}
+
+% \section{Test acronyms}
+
+% first time \gls{fpga} and \gls{noc}. Second time \gls{fpga} and \gls{noc}.
+
+% %\section{Test symbols}
+
+% %Test in text: \gls{f}, \gls{U} and \gls{I}
+% %
+% %Test in equation:
+% %\begin{align}
+% %	\gls{U} &= \SI{50}{\volt} \\
+% %	\gls{I} &= \SI{10}{\milli\ampere} \\
+% %	\gls{f} &= \SI{10}{\mega\hertz}
+% %\end{align}
+
+% \section{Test figures}
+
+% Here are some examples on how to place figures. \Cref{fig:tiefpass} is just a single figure.
+
+% \begin{figure}[htb]
+% 	\centering
+% 	\includegraphics[width=.5\linewidth]{figures/tiefpass.png}
+% 	\caption{Idealer Tiefpass}
+% 	\label{fig:tiefpass}
+% \end{figure}
+
+% But \cref{fig:functions} is one figure-environment with two figures. You can reference to each of the figures in the environment. \Cref{fig:si-function} is a Si-function and \cref{fig:dreieck} is a triangular function.
+
+% \begin{figure}[htb]
+% 	\centering
+% 	\begin{subfigure}[b]{0.4\textwidth}
+% 		\includegraphics[width=\textwidth]{figures/Si-function.png}
+% 		\caption{Si-Funktion}
+% 		\label{fig:si-function}
+% 	\end{subfigure}
+% 	~ %add desired spacing between images, e. g. ~, \quad, \qquad, \hfill etc. 
+% 	%(or a blank line to force the subfigure onto a new line)
+% 	\begin{subfigure}[b]{0.4\textwidth}
+% 		\includegraphics[width=\textwidth]{figures/dreieck.png}
+% 		\caption{Dreieck}
+% 		\label{fig:dreieck}
+% 	\end{subfigure}
+% 	\caption{Pictures of functions}
+% 	\label{fig:functions}
+% \end{figure}
+
+% Figures are always placed \emph{after} referencing them.
+
+% \section{Test tables}
+
+% This is an example of a simple table. \Cref{tab:flocklab_clock_offset} shows random stuff.
+% %
+% \begin{table}[htb]
+% 	\centering
+% 	\caption{A simple table.}
+% 	\begin{tabular}{l c c}
+% 		\toprule
+% 		Node id & DCO frequency & DCO offset\\ \midrule
+% 		11, 17, 23 & 4,131,389 Hz & -1.5\% \\
+% 		4, 10, 16, 22, 28 & 4,152,361 Hz & -1\% \\
+% 		1, 3, 7, 13, 15, 19, 25, 27, 33 & 4,194,304 Hz & 0\% \\
+% 		6, 18, 24 & 4,236,247 Hz & +1\% \\
+% 		2, 8, 14, 20, 26, 32 & 4,257,218 Hz & +1.5\% \\
+% 		\bottomrule
+% 	\end{tabular}
+% 	\label{tab:flocklab_clock_offset}
+% \end{table}
+
+% As figures, tables should be places \emph{after} referencing them.
+
+% \section{Test citation}
+
+% \cite{9864576}, \cite{Logvinenko2014}, \cite{Ogras2013}, \cite{Rantala2006}

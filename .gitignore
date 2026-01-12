@@ -1,4 +1,51 @@
-# macOS
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+.venv/
+.env
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+
+# Experiments outputs (keep CSVs, ignore large images)
+experiments/results/*.png
+
+# LaTeX build artifacts
+**/*.aux
+**/*.bbl
+**/*.bcf
+**/*.blg
+**/*.fdb_latexmk
+**/*.fls
+**/*.log
+**/*.lof
+**/*.lot
+**/*.toc
+**/*.out
+**/*.run.xml
+**/*.synctex*
+**/*.acn
+**/*.acr
+**/*.alg
+**/*.glg
+**/*.glo
+**/*.gls
+**/*.ist
+**/*.xdy
+**/*.slg
+**/*.slo
+**/*.sls
+
+# Misc
+*.swp
+*.swo
+*.tmp# macOS
 .DS_Store
 
 # Python

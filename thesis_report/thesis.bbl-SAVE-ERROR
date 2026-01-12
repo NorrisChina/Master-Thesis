@@ -1,0 +1,166 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.2 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{nty/global//global/global}
+    \entry{9789759}{inproceedings}{}
+      \name{author}{4}{}{%
+        {{hash=8cd38500e9b7f5462ff5cc7ac49c4cd8}{%
+           family={Lengerke},
+           familyi={L\bibinitperiod},
+           given={Caspar\bibnamedelima von},
+           giveni={C\bibinitperiod\bibinitdelim v\bibinitperiod}}}%
+        {{hash=43c6014697f5704455e7e3e8395f6d42}{%
+           family={Hefele},
+           familyi={H\bibinitperiod},
+           given={Alexander},
+           giveni={A\bibinitperiod}}}%
+        {{hash=cc72f8400c5004a0d5696e079cfc3fef}{%
+           family={Cabrera},
+           familyi={C\bibinitperiod},
+           given={Juan\bibnamedelima A.},
+           giveni={J\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+        {{hash=d3e7f971501ea31ce2bc16e2c490eb05}{%
+           family={Fitzek},
+           familyi={F\bibinitperiod},
+           given={Frank\bibnamedelimb H.\bibnamedelimi P.},
+           giveni={F\bibinitperiod\bibinitdelim H\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+      }
+      \strng{namehash}{34e4b7e27d91ac07461652a2cc0f7c77}
+      \strng{fullhash}{2edd699c472f65462d81449dcdae1d30}
+      \strng{bibnamehash}{34e4b7e27d91ac07461652a2cc0f7c77}
+      \strng{authorbibnamehash}{34e4b7e27d91ac07461652a2cc0f7c77}
+      \strng{authornamehash}{34e4b7e27d91ac07461652a2cc0f7c77}
+      \strng{authorfullhash}{2edd699c472f65462d81449dcdae1d30}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{NOMS 2022-2022 IEEE/IFIP Network Operations and Management Symposium}
+      \field{title}{Stopping the Data Flood: Post-Shannon Traffic Reduction in Digital-Twins Applications}
+      \field{year}{2022}
+      \field{pages}{1\bibrangedash 5}
+      \range{pages}{5}
+      \verb{doi}
+      \verb 10.1109/NOMS54207.2022.9789759
+      \endverb
+      \keyw{Wireless communication;Hash functions;Codes;Protocols;Error probability;Telecommunication traffic;Maintenance engineering;digital twin;identification via channels;post-Shannon;goal-oriented communication}
+    \endentry
+    \entry{fi16030078}{article}{}
+      \name{author}{4}{}{%
+        {{hash=2ba483c8b7a9fc47a1dfd45123aada12}{%
+           family={Salariseddigh},
+           familyi={S\bibinitperiod},
+           given={Mohammad\bibnamedelima Javad},
+           giveni={M\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=8fa3b2431dbaca3efea1acdee135a3b5}{%
+           family={Dabbabi},
+           familyi={D\bibinitperiod},
+           given={Ons},
+           giveni={O\bibinitperiod}}}%
+        {{hash=90f0bed7fe3c0548112af55f4f53e482}{%
+           family={Deppe},
+           familyi={D\bibinitperiod},
+           given={Christian},
+           giveni={C\bibinitperiod}}}%
+        {{hash=e09982fdea2bb97a09937538f9bd53b7}{%
+           family={Boche},
+           familyi={B\bibinitperiod},
+           given={Holger},
+           giveni={H\bibinitperiod}}}%
+      }
+      \strng{namehash}{9e90fb5ae8e71fb533339a3080f8ad7d}
+      \strng{fullhash}{b8f731519c80bc846293696fa37c46b4}
+      \strng{bibnamehash}{9e90fb5ae8e71fb533339a3080f8ad7d}
+      \strng{authorbibnamehash}{9e90fb5ae8e71fb533339a3080f8ad7d}
+      \strng{authornamehash}{9e90fb5ae8e71fb533339a3080f8ad7d}
+      \strng{authorfullhash}{b8f731519c80bc846293696fa37c46b4}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Numerous applications of the Internet of Things (IoT) feature an event recognition behavior where the established Shannon capacity is not authorized to be the central performance measure. Instead, the identification capacity for such systems is considered to be an alternative metric, and has been developed in the literature. In this paper, we develop deterministic K-identification (DKI) for the binary symmetric channel (BSC) with and without a Hamming weight constraint imposed on the codewords. This channel may be of use for IoT in the context of smart system technologies, where sophisticated communication models can be reduced to a BSC for the aim of studying basic information theoretical properties. We derive inner and outer bounds on the DKI capacity of the BSC when the size of the goal message set K may grow in the codeword length n. As a major observation, we find that, for deterministic encoding, assuming that K grows exponentially in n, i.e., K=2nκ, where κ is the identification goal rate, then the number of messages that can be accurately identified grows exponentially in n, i.e., 2nR, where R is the DKI coding rate. Furthermore, the established inner and outer bound regions reflects impact of the input constraint (Hamming weight) and the channel statistics, i.e., the cross-over probability.}
+      \field{issn}{1999-5903}
+      \field{journaltitle}{Future Internet}
+      \field{number}{3}
+      \field{title}{Deterministic K-Identification for Future Communication Networks: The Binary Symmetric Channel Results}
+      \field{volume}{16}
+      \field{year}{2024}
+      \verb{doi}
+      \verb 10.3390/fi16030078
+      \endverb
+      \verb{urlraw}
+      \verb https://www.mdpi.com/1999-5903/16/3/78
+      \endverb
+      \verb{url}
+      \verb https://www.mdpi.com/1999-5903/16/3/78
+      \endverb
+    \endentry
+    \entry{9013428}{inproceedings}{}
+      \name{author}{5}{}{%
+        {{hash=cae4024204576ac785b7029350f7889d}{%
+           family={Tsokalo},
+           familyi={T\bibinitperiod},
+           given={Ievgenii\bibnamedelima A.},
+           giveni={I\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+        {{hash=4589e0a4a50e194bc03374c963eb7318}{%
+           family={Kuss},
+           familyi={K\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod}}}%
+        {{hash=5517b4f310ffd55823c7313bb1dd9c79}{%
+           family={Kharabet},
+           familyi={K\bibinitperiod},
+           given={Ievgen},
+           giveni={I\bibinitperiod}}}%
+        {{hash=d3e7f971501ea31ce2bc16e2c490eb05}{%
+           family={Fitzek},
+           familyi={F\bibinitperiod},
+           given={Frank\bibnamedelimb H.\bibnamedelimi P.},
+           giveni={F\bibinitperiod\bibinitdelim H\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+        {{hash=e5883236e64d11b6c74c9bddea54c831}{%
+           family={Reisslein},
+           familyi={R\bibinitperiod},
+           given={Martin},
+           giveni={M\bibinitperiod}}}%
+      }
+      \strng{namehash}{c49c5ad852c87fe32bb58c1b744a6100}
+      \strng{fullhash}{43939e194b0e7206327588b75fb26e8f}
+      \strng{bibnamehash}{c49c5ad852c87fe32bb58c1b744a6100}
+      \strng{authorbibnamehash}{c49c5ad852c87fe32bb58c1b744a6100}
+      \strng{authornamehash}{c49c5ad852c87fe32bb58c1b744a6100}
+      \strng{authorfullhash}{43939e194b0e7206327588b75fb26e8f}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{2019 IEEE Global Communications Conference (GLOBECOM)}
+      \field{title}{Remote Robot Control with Human-in-the-Loop over Long Distances Using Digital Twins}
+      \field{year}{2019}
+      \field{pages}{1\bibrangedash 6}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1109/GLOBECOM38437.2019.9013428
+      \endverb
+      \keyw{Internet;Robot control;Manipulators;Delays;Visualization}
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+

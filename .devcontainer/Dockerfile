@@ -8,6 +8,7 @@ ENV LC_ALL=C.UTF-8
 # 安装 Python 3.12 + venv + pip
 RUN apt-get update && apt-get install -y \
     python3.12 python3.12-venv python3-pip \
+    latexmk biber texlive-publishers texlive-latex-extra texlive-fonts-extra \
     && rm -rf /var/lib/apt/lists/*
 
 # 工作目录

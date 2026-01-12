@@ -1,0 +1,82 @@
+\chapter{Background and Related Work}
+\label{ch:background}
+
+This chapter establishes the theoretical foundations and reviews the state-of-the-art literature relevant to this thesis. We first outline the operational constraints of Digital Twins in Cyber-Physical Systems using recent studies on remote robot control~\cite{9013428}. Subsequently, we delve into the information-theoretic principles of Identification (ID)~\cite{ahlswede1989} and its application in Post-Shannon communication~\cite{9789759}. Finally, we discuss practical encoding schemes—specifically algebraic and cryptographic approaches—and the extension to K-Identification (K-ID) for semantic event recognition~\cite{fi16030078}, identifying the specific latency and reliability gaps this thesis aims to bridge.
+
+\section{Digital Twin Synchronization in CPS}
+\label{sec:dt_sync}
+
+Digital Twins (DTs) serve as high-fidelity virtual replicas of physical assets, essential for applications requiring real-time interaction over long distances. As demonstrated by Tsokalo et al.~\cite{9013428}, in scenarios such as remote robot control with human-in-the-loop, the DT acts as a predictor to mask network delays. However, the effectiveness of this setup is strictly bounded by the synchronization latency between the physical robot and the DT. High latency or jitter can lead to inconsistencies between the physical and virtual states, potentially causing instability in the control loop or safety violations~\cite{9013428}.
+
+Standard synchronization protocols typically employ periodic transmission of raw telemetry data. While robust, this approach ignores the semantic content of the data, leading to the "data flood" phenomenon described in~\cite{9789759}, where redundant updates consume scarce wireless bandwidth without adding information value.
+
+\section{Identification-based (ID) Synchronization}
+\label{sec:id_overview}
+
+To mitigate bandwidth inefficiencies, recent research has pivoted from classical data transmission to \textit{Identification-based} synchronization.
+
+\subsection{Application in Digital Twins}
+von Lengerke et al.~\cite{9789759} proposed a "Post-Shannon" traffic reduction scheme for DT applications. Their work demonstrates that by transmitting compressed, randomized "verifiers" (hash-based signatures) instead of raw data, the communication traffic can be drastically reduced while maintaining synchronization accuracy. This approach exploits the fact that the DT often holds a correct local prediction; thus, the communication task simplifies to a hypothesis test (Match/No-Match) rather than full data reconstruction~\cite{9789759}.
+
+\section{Theoretical Foundations of Identification}
+\label{sec:id_theory}
+
+
+
+The theoretical basis for this paradigm lies in the seminal work of Ahlswede and Dueck~\cite{ahlswede1989} on "Identification via Channels." This section details why ID fundamentally differs from transmission.
+
+\subsection{The Double Exponential Capacity Phenomenon}
+In Shannon's classical transmission theory, the goal is to distinctively reconstruct a message $m$. This requires mapping each message to a \textbf{disjoint} decoding set in the output space. Consequently, the number of messages $M$ is bounded by the volume of the space, scaling exponentially with blocklength $n$ (i.e., $M \sim 2^{nR}$)~\cite{ahlswede1989}.
+
+In contrast, the identification problem asks: "Is the current state equal to $i$?". Ahlswede and Dueck proved that if we relax the disjointness constraint and allow decoding sets to overlap (provided their intersection is statistically small), the capacity changes fundamentally~\cite{ahlswede1989}.
+
+**Intuitive Explanation:** The difference can be understood through set theory. In transmission, we map messages to elements (points) in the space. In identification, we map messages to subsets (shapes) of the space. Since the number of subsets (the power set) is $2^{\text{elements}}$, the number of identifiable messages $N$ scales doubly exponentially:
+\begin{equation}
+    N \sim 2^{2^{nC}}
+\end{equation}
+This implies that for verifying synchronization states, an extremely short verifier length $n$ suffices to distinguish a vast, practically infinite number of potential robot states.
+
+\subsection{Why Randomization is Mandatory}
+A critical caveat in ID theory is that deterministic coding cannot achieve this double exponential growth. For any deterministic mapping of $N$ messages into overlapping sets, there inevitably exists a "worst-case pair" of messages whose decoding sets overlap significantly, leading to a collision probability $P_e \approx 1$~\cite{ahlswede1989}.
+
+To mitigate this, \textbf{Randomization} (or Common Randomness) is mandatory. In a randomized scheme, the mapping depends on a stochastic variable $r$ (seed/salt). This "smears" the collision probability across the entire message space, ensuring that for \emph{any} pair of distinct states, the probability of collision is uniformly bounded by a small $\epsilon$.
+
+\section{Semantic Event Recognition: K-Identification (K-ID)}
+\label{sec:kid_theory}
+
+While standard ID focuses on distinguishing a unique state, practical IoT and control applications often exhibit "event recognition behavior," where the goal is to identify whether the system state belongs to a specific target set. This generalization is known as \textbf{K-Identification (K-ID)}.
+
+\subsection{The Concept of Set Identification}
+Salariseddigh et al.~\cite{fi16030078} recently formalized Deterministic K-Identification (DKI). They highlight that in many smart systems, the established Shannon capacity is not the central metric; instead, the system aims to identify a goal message set of size $K$~\cite{fi16030078}. Their results on Binary Symmetric Channels indicate that the identifiable message sets can grow exponentially with codeword length.
+
+\subsection{K-ID in Robotic Safety Monitoring}
+Adapting this concept to robotic control, this thesis defines K-ID as the process of verifying whether the robot's state lies within a semantic "safe range" (denoted as Set~$\mathcal{B}$). Unlike the deterministic models in~\cite{fi16030078}, we apply K-ID in a randomized encoding framework to handle continuous Gaussian state distributions.
+
+\section{Practical Encoding Schemes}
+\label{sec:encoding_schemes}
+
+Translating theoretical randomized ID codes into practical edge-computing algorithms requires specific construction methods. We analyze two primary schemes used in our latency modeling.
+
+\subsection{Algebraic Encoding: Reed-Solomon Identification (RS-ID)}
+RS-ID constructs the verifier using polynomial evaluation over a finite field $\mathbb{F}_q$. Let the robot's state $S$ be represented as a vector of coefficients $S = [s_0, \dots, s_k]$. We define a polynomial $P_S(x) = \sum s_j x^j$. The verifier $v$ is the evaluation of this polynomial at a random point $r$ (the common randomness):
+\begin{equation}
+    v = P_S(r) = \sum_{j=0}^{k} s_j r^j \pmod q
+\end{equation}
+\textbf{Property:} Based on the fundamental theorem of algebra, two distinct polynomials of degree $k$ intersect at most at $k$ points. Thus, the collision probability is strictly bounded by $k/q$. While theoretically secure, this operation incurs high computational latency ($O(k \log k)$ or $O(k^2)$).
+
+\subsection{Cryptographic Hashing: Truncated SHA-256}
+For engineering efficiency, we utilize cryptographic hash functions. The verifier is constructed by concatenating the state $S$ with a time-variant salt $r$, hashing, and truncating to $n_{\text{ver}}$ bits:
+\begin{equation}
+    v = \text{Truncate}_{n_{\text{ver}}}\left( \text{SHA-256}(S \ || \ r) \right)
+\end{equation}
+\textbf{Property:} The salt $r$ provides the necessary randomization. Assuming the hash behaves as a random oracle, the collision probability approximates $1/2^{n_{\text{ver}}}$. This method benefits from hardware acceleration on modern CPUs but lacks the strict algebraic proofs of RS-ID.
+
+\section{Summary and Research Gaps}
+\label{sec:gaps}
+
+Despite the progress in traffic reduction~\cite{9789759} and K-ID theory~\cite{fi16030078}, two critical engineering gaps remain:
+\begin{enumerate}
+    \item \textbf{Latency Trade-offs:} Previous works like~\cite{9789759} focus primarily on traffic reduction. However, the \textit{computational latency} introduced by encoding algorithms (Section~\ref{sec:encoding_schemes}) has not been modeled end-to-end. It remains unclear under what bandwidth conditions the computational cost of RS-ID or SHA-256 outweighs the transmission gain.
+    \item \textbf{Reliability of Randomized K-ID:} While~\cite{fi16030078} provides bounds for deterministic K-ID, the safety risks (Type II/Miss errors) of using \textit{randomized} K-ID for continuous robotic states with varying safety range sizes (Set~$\mathcal{B}$) lack empirical characterization.
+\end{enumerate}
+This thesis aims to address these specific limitations.

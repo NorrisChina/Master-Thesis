@@ -1,0 +1,30 @@
+\chapter{Introduction}
+\label{sec:introduction}
+
+% --- 1. Background ---
+Digital Twins (DTs) have become a standard component in modern industrial automation for connecting physical assets with their virtual counterparts. By maintaining accurate virtual copies of systems like industrial robots, \gls{dt}s enable real-time monitoring, predictive maintenance, and remote control. In time-critical \gls{cps} applications, the utility of a \gls{dt} is strictly defined by the synchronization accuracy between the physical robot and the digital model~\cite{9013428}. Consequently, ensuring state consistency typically demands \gls{urllc} capabilities to support high-frequency updates.
+
+% --- 2. Problem Statement ---
+However, meeting these requirements via standard periodic transmission is resource-intensive. Since the DT often possesses a precise estimate of the robot's state, continuously transmitting raw telemetry data creates significant redundancy. This inefficiency consumes scarce bandwidth without providing new information gain.
+
+% --- 3. Existing Solution (ID) ---
+To mitigate this redundancy, recent research proposes \emph{identification-based (ID)} synchronization~\cite{9789759}. Unlike classical Shannon-type communication, which aims to reconstruct the full message, ID schemes focus on a verification task: confirming whether the remote state matches a local hypothesis. Building on this concept, prior works~\cite{fi16030078} demonstrate that transmitting a compressed ``verifier'' (e.g., a short hash or randomized code) instead of the full state significantly reduces communication traffic. This approach effectively supports goal-oriented communication in low-latency scenarios.
+
+% --- 4. Research Gaps ---
+However, implementing ID synchronization in real-time control loops reveals two critical engineering trade-offs. First, regarding latency, the computational overhead of encoding on edge devices may exceed the time saved by reducing transmission traffic. This shift from a communication-bound to a computation-bound bottleneck necessitates a rigorous end-to-end feasibility analysis. Second, reliability becomes a primary concern when moving from exact to semantic verification. In practical control, enforcing bitwise synchronization (standard ID) is often overly conservative, triggering unnecessary updates for benign deviations such as sensor noise. To address this, we extend identification to semantic ``safe ranges'' (\textbf{K-ID}), where the system verifies set membership rather than a unique value. This relaxation, however, introduces collision risks, specifically Type II (miss) errors, where dangerous desynchronizations are incorrectly classified as safe. Therefore, quantifying the relationship between the semantic acceptance range and safety risks is essential.
+
+% --- 5. Contributions ---
+% 用 "integrated view" 代替 "holistic view".
+To address these limitations, this thesis presents a complementary study to existing ID frameworks, extending the analysis from pure traffic optimization to an \textbf{integrated view} of latency and reliability in \gls{kid} systems. The main contributions are:
+
+\textbf{First}, we develop an end-to-end latency model combining computational and transmission delays. We compare cryptographic (SHA-256) and algebraic (RS-ID) encoding schemes to determine the quantitative thresholds (break-even points) where ID yields a net latency benefit as a function of bandwidth and verifier length.
+
+\textbf{Second}, we formalize the \gls{kid} problem for robotic monitoring, distinguishing \emph{safe} from \emph{unsafe} desynchronization via semantic safety sets. We derive quantitative bounds on miss error probabilities induced by K-ID mechanisms.
+
+\textbf{Third}, we conduct a \textbf{systematic evaluation} using a reproducible software stack. Through Monte Carlo experiments on Gaussian robot trajectories, we expose a non-monotonic dependence between the semantic acceptance range (Set~B) and error rates. These results provide design guidelines for balancing semantic tolerance with safety detection in edge-based DT networks.
+
+% --- 6. Prior Work ---
+\textbf{Relation to prior work.} While \gls{id} rests on a solid information-theoretic foundation, engineering studies have primarily focused on traffic suppression. We extend this line of work by \textbf{treating latency as a primary metric} alongside traffic and by generalizing from single identification to \gls{kid}, which aligns better with real-world DT workflows. Our results aim to inform design choices regarding \emph{when to use ID/K-ID and with which verifier lengths} under realistic bandwidth conditions.
+
+% --- 7. Organization ---
+\textbf{Organization.} Chapter~\ref{ch:background} introduces the background and related work; Chapter~\ref{sec:design_methodology} details the system model and measurement protocol; Chapter~\ref{sec:implementation} describes the software stack and reproducibility; Chapter~\ref{sec:results_and_evaluation} presents the experimental results, including latency–traffic curves parameterized by bandwidth and load; Chapter~\ref{sec:conclusion_and_future_work} concludes and outlines future engineering directions for \gls{kid}.

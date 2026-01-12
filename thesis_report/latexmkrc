@@ -1,0 +1,16 @@
+# latexmk configuration for thesis_report
+
+# Use biber for biblatex
+$bibtex = 'biber';
+
+# Force pdf mode and set pdflatex options
+$pdf_mode = 1;
+$pdflatex = 'pdflatex -interaction=nonstopmode -file-line-error %O %S';
+
+# Support glossaries + acronyms
+add_cus_dep('glo', 'gls', 0, 'makeglossaries');
+add_cus_dep('acn', 'acr', 0, 'makeglossaries');
+add_cus_dep('slo', 'sls', 0, 'makeglossaries');
+sub makeglossaries {
+    return system("makeglossaries $_[0]");
+}

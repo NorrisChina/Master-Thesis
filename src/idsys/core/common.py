@@ -1,5 +1,13 @@
 from typing import List, Any, Optional, Dict, Union, Generator
-from idcodes.idcodes import IDCODES_U8, IDCODES_U16, IDCODES_U32, IDCODES_U64
+try:
+    # Preferred import when the package exposes top-level `idcodes`
+    from idcodes.idcodes import IDCODES_U8, IDCODES_U16, IDCODES_U32, IDCODES_U64
+except ImportError:
+    try:
+        # Some distributions expose it under `ecidcodes.idcodes`
+        from ecidcodes.idcodes import IDCODES_U8, IDCODES_U16, IDCODES_U32, IDCODES_U64
+    except ImportError:
+        IDCODES_U8 = IDCODES_U16 = IDCODES_U32 = IDCODES_U64 = None
 
 # Type aliases for better code readability
 Message = List[int]
