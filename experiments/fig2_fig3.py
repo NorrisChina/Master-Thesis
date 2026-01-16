@@ -21,6 +21,7 @@ import csv
 from typing import Any, Dict, Tuple
 
 import numpy as np
+import multiprocessing as mp
 import matplotlib.pyplot as plt
 
 # Ensure project src is on sys.path for local imports
@@ -140,9 +141,9 @@ def fig2(args: argparse.Namespace):
     requested_systems = args.systems or ["RSID", "SHA256ID"]
     systems = []
     for s in requested_systems:
-        if s == "RSID" and IDCODES_U8 is None:
-            print("Warning: RSID requires ecidcodes/idcodes which is not installed; skipping RSID.")
-            continue
+        # if s == "RSID" and IDCODES_U8 is None:
+            # print("Warning: RSID requires ecidcodes/idcodes which is not installed; skipping RSID.")
+            # continue
         systems.append(s)
 
     results = []
@@ -186,23 +187,36 @@ def fig2(args: argparse.Namespace):
     print('Fig.2 saved to', os.path.join(OUT_DIR, 'fig2.png'))
 
 
+def _run_simulation_tuple(t: Tuple[str, int, int, int, float, int, int]) -> Dict[str, float]:
+    system, gf_exp, nver, ndata, p, N, seed = t
+    return run_simulation(system, gf_exp, nver, ndata, p, N, seed=seed)
+
+
 def fig3(args: argparse.Namespace):
     # fig3 normalized traffic vs p_desync for various nver/ndata
     N = args.N
-    p_list = np.linspace(0.0, 1.0, 11)
-    system = 'RSID'  # paper shows RS-ID, and SHA behaves similarly
-    nver_list = [4,8,12,16]
+    p_list = np.linspace(0.0, 1.0, args.p_steps)
+    system = args.system  # paper shows RS-ID, and SHA behaves similarly
+    nver_list = args.nver_list or [4,8,12,16]
     ndata = 96
 
     plt.figure(figsize=(8,6))
     for nver in nver_list:
-        norm_traffic = []
+        # prepare tasks for this nver
+        tasks = []
         for p in p_list:
-            # Choose gf_exp based on mode
             gf_exp = nver if args.gf_exp_mode == 'match-nver' else args.gf_exp
-            print(f"Running RSID nver={nver} gf_exp={gf_exp} p_desync={p:.2f} ...")
-            res = run_simulation(system, gf_exp, nver, ndata, p, N, seed=123)
-            norm_traffic.append(res['normalized_traffic'])
+            if not args.quiet:
+                print(f"Running {system} nver={nver} gf_exp={gf_exp} p_desync={p:.2f} ...")
+            tasks.append((system, gf_exp, nver, ndata, float(p), N, 123))
+
+        if args.jobs and args.jobs > 1:
+            with mp.Pool(processes=args.jobs) as pool:
+                results = pool.map(_run_simulation_tuple, tasks)
+        else:
+            results = [_run_simulation_tuple(t) for t in tasks]
+
+        norm_traffic = [r['normalized_traffic'] for r in results]
         plt.plot(p_list, norm_traffic, marker='o', label=f'nver={nver}')
 
     # also plot traditional and optimal lines
@@ -227,6 +241,12 @@ def main():
     parser.add_argument('--gf-exp', type=int, default=8, help='GF exponent when --gf-exp-mode=fixed (default 8)')
     parser.add_argument('--gf-exp-mode', choices=['fixed','match-nver'], default='fixed', help='How to choose GF exponent for each point')
     parser.add_argument('--xaxis', choices=['empirical','theory'], default='theory', help='Use empirical or theoretical p_err on x-axis')
+    # fig3-specific speed/shape controls
+    parser.add_argument('--p-steps', type=int, default=11, help='Number of points between 0 and 1 for p_desync (default 11)')
+    parser.add_argument('--nver-list', type=int, nargs='+', help='Override nver list for fig3, e.g., --nver-list 4 8 12')
+    parser.add_argument('--system', choices=['RSID','SHA256ID'], default='RSID', help='System to use for fig3 (default RSID)')
+    parser.add_argument('--jobs', type=int, default=1, help='Parallel workers for fig3 (default 1)')
+    parser.add_argument('--quiet', action='store_true', help='Reduce console output during runs')
     args = parser.parse_args()
 
     if args.mode == 'fig2':

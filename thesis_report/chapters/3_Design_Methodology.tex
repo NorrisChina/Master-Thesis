@@ -1,186 +1,197 @@
 \chapter{Design Methodology}
-\label{sec:design_methodology}
+\label{ch:design_methodology}
 
-\section{Overview}
-This chapter gives the modeling and experimental methodology used to evaluate identification (ID) and its extension to K‑Identification (K‑ID). It defines the latency and traffic models, the measurement protocols used to obtain per‑operation compute times, and the Monte‑Carlo procedures used to estimate rare false‑accept/miss probabilities. The goal is to state assumptions and reproducible procedures so that results in Chapter~\ref{sec:results_and_evaluation} can be reproduced from the provided scripts and data.
+% \section{Overview}
+This chapter formulates the system model for identification-based synchronization and derives the theoretical bounds for its reliability and latency. We contrast the data flow of classical transmission with the proposed identification scheme, explicitly breaking down the operational stages from state generation to synchronization. We then quantify the collision probabilities and end-to-end latency based on these distinct workflows.
 
-\section{Notation and Goals}
-We study systems that implement a short verifier (tag) check and an optional bulk transfer upon mismatch. The central quantities are:
-\begin{itemize}
-	\item $L_{\text{ver}}$: verifier/tag length (bits);
-	\item $L_{\text{data}}$: payload length (bits), equivalently $n_{\text{data}}$ in bytes where noted;
-	\item $p_{\text{desync}}$: probability that the receiver's stored state is desynchronized and hence bulk transfer is required;
-	\item $p_{\text{miss}}$: per‑object false‑accept probability of the verifier (i.e., when a tag incorrectly accepts a different object); we will sometimes denote the empirically measured value as $\hat p_{\text{miss}}$ or $p_{\text{miss,emp}}$;
-	\item $T_{\text{encode}}$ and $T_{\text{verify}}$: wall‑clock compute times for one encode (sender) and one verify (receiver) operation, measured on the target platform.
-\end{itemize}
+\section{System Model and Data Flow}
+\label{sec:system_model}
 
-The engineering objective is to quantify expected latency and traffic per object/query as functions of verifier length, number of verifications in a batch ($K$), and network bandwidth $B$.
+We consider a networked control system where a Robot (Sender) synchronizes its state $S_t$ with a Digital Twin (Receiver) maintaining a prediction $\hat{S}_t$. The fundamental difference between the two approaches lies in their data processing pipelines.
 
-\section{Encoding Process}
-This section details the mathematical steps of the encoder families used in our evaluation and links them to the concrete implementations in the repository under \path{src/idsys/core/idsystems.py}.
+\subsection{Baseline: Traditional Transmission Flow}
+The standard synchronization protocol follows a linear, ``always-on'' approach. As illustrated in Figure~\ref{fig:trad_flow}, the data flow consists of three sequential stages:
 
-\subsection{SHA256ID}
-Given a message $M = (m_0,m_1,\dots,m_{n-1})$ of bytes, the SHA256ID encoder computes
-\[
-H = \mathrm{SHA256}(M) \in \{0,1\}^{256},
-\]
-and derives a tag by truncation to $e$ bits corresponding to the configured Galois-field exponent $e$:
-\[
-\mathrm{tag} = H[0:e] \in \{0,1\}^{e} \equiv \mathbb{F}_{2^e}\;\text{symbol},
-\]
-where $H[0:e]$ denotes the first $e$ bits of the digest. In our code, this is implemented by \texttt{SHA256IDEncoder.encode} which calls \texttt{idcodes.sha256id(message, gf\_exp)} and returns a single integer tag representing the $e$-bit truncation. Verification recomputes the same mapping and compares equality (\texttt{SHA256IDVerifier.verify}).
+\begin{figure}[htbp]
+    \centering
+    % Ensure you have the file 'figures/trad.png'
+    \includegraphics[width=0.8\textwidth]{figures/trad.png}
+    \caption{Data flow of Traditional Synchronization: The full state is transmitted regardless of the Digital Twin's knowledge.}
+    \label{fig:trad_flow}
+\end{figure}
 
-\subsection{RSID}
-Let $e$ be the Galois-field exponent and $\mathbb{F}_{2^e}$ the finite field constructed by \texttt{idcodes.generate\_gf\_outer(e)}. We interpret the input bytes as field symbols $M = (x_0, x_1,\dots,x_{n-1}) \in \mathbb{F}_{2^e}^n$.
-
-RSID computes a Reed–Solomon codeword
-\[
-\mathbf{C} = (c_0,\dots,c_{n-1}) \in \mathbb{F}_{2^e}^n,\quad c_i = P(\alpha_i),
-\]
-by evaluating a polynomial $P(X)$ of degree $< k$ (message polynomial) at evaluation points $(\alpha_0,\dots,\alpha_{n-1})$ in $\mathbb{F}_{2^e}$. The RSID \emph{tag} is then the symbol at a configured position $t \in \{0,\dots,n-1\}$:
-\[
-\mathrm{tag}(M; t,e) = c_t = P(\alpha_t) \in \mathbb{F}_{2^e}.
-\]
-In practice, we use a compact implementation via the \texttt{idcodes} library: \texttt{RSIDEncoder.encode} iterates the configured positions \texttt{tag\_pos} and calls \texttt{idcodes.rsid(message, tag\_pos, gf\_exp)} to return one integer per position (each representing an $e$-bit field symbol). The verifier recomputes these symbols and checks equality across positions (\texttt{RSIDVerifier.verify}).
-
-Remarks:
-\begin{itemize}
-	\item The field initialization is performed by \texttt{get\_idcodes\_instance} and \texttt{generate\_gf\_outer(e)} for $e\leq16$ as seen in \texttt{RSIDEncoder}.
-	\item For multi-tag configurations, RSID returns a list of tags $(c_{t_1},\dots,c_{t_r})$; verification requires all positions to match.
-\end{itemize}
-
-\subsection{RS2ID}
-RS2ID is a concatenated Reed--Solomon construction that maps a byte message $M$ to a single tag by composing an inner RS mapping with an outer RS mapping. Let $e_0$ denote the base Galois-field exponent. The implementation uses an effective field size $2e_0$ for the concatenated symbol, i.e., arithmetic in $\mathbb{F}_{2^{2e_0}}$ for the outer layer, while the inner layer uses $\mathbb{F}_{2^{e_0}}$ symbols.
-
-Conceptually, the encoder forms an inner RS stream from $M$ and packs inner symbols into an outer message polynomial $P_{\text{out}}(X)$ over $\mathbb{F}_{2^{2e_0}}$. The RS2ID tag is the outer evaluation at a configured position $t_{\text{out}}$ with a configured inner position $t_{\text{in}}$ governing which inner evaluation participates in the packing:
-\[
-\mathrm{tag}(M; t_{\text{out}}, t_{\text{in}}, e_0) \,=\, P_{\text{out}}(\alpha^{\text{out}}_{t_{\text{out}}}) \in \mathbb{F}_{2^{2e_0}}.
-\]
-In code, \texttt{RS2IDEncoder.encode} returns a single integer tag by calling
-\[
-	exttt{idcodes.rs2id}(\,\textit{message},\, \textit{tag\_pos},\, \textit{tag\_pos\_in},\, \textit{gf\_exp}\,).
-\]
-Here \texttt{gf\_exp} is set to $2e_0$ internally. Field initialization follows the backend's requirements: for small exponents, both outer and inner fields are generated via \texttt{generate\_gf\_outer(.)} and \texttt{generate\_gf\_inner(.)}. Verification recomputes the tag with the same parameters and compares equality (\texttt{RS2IDVerifier.verify}).
-
-\section{Latency and Traffic Model}
-\label{sec:latency_analysis}
-We adopt a simple, separable latency model that decomposes total expected latency into compute and transfer components.\footnote{In our target scenario, the verify step is constant‑time and negligible relative to encode and network transfer; unless noted otherwise we set $T_{\text{verify}}\approx 0$ so the compute term reduces to $T_{\text{encode}}$. For completeness, Section~\ref{sec:latency_speedup} retains the general form with $T_{\text{verify}}$.} For a single verifier check (no batching), the expected latency when querying an object is
-\[
-L_{\text{total}} = T_{\text{comp}} + T_{\text{net}},
-\]
-where the compute term (with the simplifying assumption $T_{\text{verify}}\approx 0$) is
-\[ 
-T_{\text{comp}} = T_{\text{encode}}, 
-\]
-and the network term accounts for the short tag transfer and the conditional bulk transfer upon mismatch. Under a perfect (no‑loss) channel and assuming negligible tag size relative to $L_{\text{data}}$, we approximate the network contribution as
-\[
-T_{\text{net}} = \frac{n_{\text{ver}}}{B} + p_{\text{desync}}(1- p_{\text{miss}})\frac{n_{\text{data}}}{B},
-\]
-where $n_{\text{ver}}$ is the verifier size in bytes and $B$ is bandwidth in bytes/second. The first term models the (small) verifier transfer; the second term is the expected conditional bulk transfer cost (only when a true desync occurs and the verifier does not falsely accept). This formula matches the user formula used in our experiments and is the basis for the latency plots in Chapter~\ref{sec:results_and_evaluation}.
-
-\paragraph{Traffic model.}
-Following prior "stopping the dataflow" traffic analysis, the expected per‑message traffic (in bytes) can be written as
-\begin{equation}
-\label{eq:traffic_model}
-\mathrm{traffic} = n_{\mathrm{ver}} + p_{\mathrm{desync}}(1 - p_{\mathrm{miss}})\, n_{\mathrm{data}} + (1 - p_{\mathrm{desync}})\, p_{\mathrm{FA}}\, n_{\mathrm{data}},
-\end{equation}
-where $p_{\mathrm{FA}}$ denotes the false‑accept probability while remaining synchronized. Under the perfect‑channel assumption used in our experiments ($p_{\mathrm{FA}}=0$), this simplifies to
-\begin{equation}
-\label{eq:traffic_model_perfect}
-\mathrm{traffic} = n_{\mathrm{ver}} + p_{\mathrm{desync}}(1 - p_{\mathrm{miss}})\, n_{\mathrm{data}}.
-\end{equation}
-These traffic expressions directly induce the network term via division by throughput $B$ (i.e., $\mathrm{traffic}/B$), and are consistent with the latency formulation above.
-
-\paragraph{On the verification cost $T_{\text{verify}}$.}
-In our target setting, the verify step is a constant‑time check of a small tag (e.g., testing a hash key’s presence in a dictionary). Its cost is negligible compared to encode and network transfer. Hence for single‑object ID we approximate $T_{\text{verify}}\approx 0$ without affecting conclusions. For K‑ID, batch verify cost can be written $T_{\text{verify}}^{(K)}=\alpha+\beta K$, but each candidate’s check remains constant‑time and $(\alpha,\beta)$ are small in our implementation, making $T_{\text{verify}}^{(K)}$ negligible relative to $T_{\text{encode}}$ and the network term. We use this approximation in the results chapter and support it with measurements.
-
-For K‑ID (an OR over a set of size $K$), the OR‑aggregation changes the effective false‑accept rate. If per‑object false‑accept probability is $p$ and errors are approximately independent across objects, the false‑accept probability for the $K$‑set is
-\[
-\lambda_2^{(K)} = 1 - (1-p)^K \approx 1 - e^{-pK}.
-\]
-Hence, in a K‑verification batch, only when the batch fails to find the transmitted object is the costly bulk transfer required; the modeling in Section~\ref{sec:latency_analysis} uses $\lambda_2^{(K)}$ to compute the conditional bulk probability.
-
-\subsection{Baselines and Speedup Conditions}
-\label{sec:latency_speedup}
-We compare the expected latency of three reference schemes and derive simple thresholds.
-
-\paragraph{Always send full state (baseline).}
-Sending the payload every time yields
-\[
-L_{\text{full}} = \frac{n_{\text{data}}}{B},
-\]
-that is, we ignore baseline compute cost when transmitting full state.
-
-\paragraph{Single‑object ID.}
-As above,
-\[
-L_{\text{ID}} = T_{\text{encode}} + T_{\text{verify}} + \frac{n_{\text{ver}}}{B} + p_{\text{desync}}(1-p_{\text{miss}})\frac{n_{\text{data}}}{B}.
-\]
-ID is faster than always sending when $L_{\text{ID}} < L_{\text{full}}$, i.e.,
-\[
-T_{\text{encode}} + T_{\text{verify}} + \frac{n_{\text{ver}}}{B} \; < \; \Bigl[1 - p_{\text{desync}}(1-p_{\text{miss}})\Bigr]\frac{n_{\text{data}}}{B}.
-\]
-Equivalently, for a given platform and bandwidth, the maximum per‑query compute budget that still yields speedup is
-\[
-T_{\text{encode}} + T_{\text{verify}} \; < \; \Bigl[1 - p_{\text{desync}}(1-p_{\text{miss}})\Bigr]\frac{n_{\text{data}}}{B} - \frac{n_{\text{ver}}}{B}.
-\]
-
-\paragraph{K‑ID (batch OR over $K$ candidates).}
-Let $T_{\text{encode}}^{(K)}$ and $T_{\text{verify}}^{(K)}$ denote the batch encode/verify costs. In practice we observe $T_{\text{encode}}^{(K)}\!\approx T_{\text{encode}}$ (one tag per query) and $T_{\text{verify}}^{(K)}\!=\!\alpha + \beta K$ for constants $(\alpha,\beta)$ measured on the platform (per‑candidate inner‑loop cost). Let $q_{\text{hit}}$ be the probability at least one of the $K$ candidates truly matches (a semantic acceptance event). The expected latency becomes
-\[
-L_{\text{KID}} = T_{\text{encode}}^{(K)} + T_{\text{verify}}^{(K)} + \frac{n_{\text{ver}}}{B} + \underbrace{\bigl(1-q_{\text{hit}}\bigr)\bigl(1-\lambda_2^{(K)}\bigr)}_{\text{no hit and no false accept}}\frac{n_{\text{data}}}{B}.
-\]
-Relative to $K$ repeated single‑object checks (serial queries), batch K‑ID eliminates $K-1$ verifier round‑trips and $K-1$ encode/verify pairs, which is beneficial when
-\[
-T_{\text{verify}}^{(K)} + \frac{n_{\text{ver}}}{B} \; \ll \; K\Bigl(T_{\text{verify}} + \frac{n_{\text{ver}}}{B}\Bigr),
-\]
-and the increase in $\lambda_2^{(K)}$ (cf. $1-(1-p)^K$) still keeps the conditional bulk probability low in the operating regime. This inequality captures the typical edge case where computation and small messages dominate per‑query overheads.
-
-\section{Measurement Protocols}
-We measure compute times and false‑accept probabilities with the following reproducible protocols.
-
-\subsection{Compute time measurements}
-Compute times are measured using Python's \texttt{time.perf\_counter()} in a controlled experiment harness under \texttt{experiments/}. The harness supports these options that affect results and are explicitly recorded:
-\begin{itemize}
-	\item \textbf{Warmup}: perform $W$ warmup iterations before timed runs to let caches and JITs (if any) stabilize. We record runs with and without warmup to expose sensitivity.
-	\item \textbf{Pinning}: the process can be pinned to a single CPU core using \texttt{taskset} to reduce scheduling noise.
-	\item \textbf{Per‑iteration sampling}: we record either all iteration latencies or a sampled subset; percentiles (5/50/95) are reported.
-\end{itemize}
-
-All timing scripts output CSV rows with columns: \texttt{id\_system}, \texttt{n\_ver}, \texttt{n\_data}, \texttt{warmup}, \texttt{iteration}, \texttt{elapsed\_s} (or aggregated statistics). Example scripts: \texttt{experiments/measure\_encoder\_time.py} and \texttt{experiments/measure\_encoder\_time\_samples.py}.
-
-\subsection{False‑accept / Monte‑Carlo estimation}
-Estimating very small false‑accept probabilities requires Monte‑Carlo sampling of desynchronization events. The procedure is:
 \begin{enumerate}
-	\item Fix an ID configuration (encoder parameters, tag positions, $n_{\text{ver}}$).
-	\item Repeat $N$ trials: generate a random desync pattern (or select adversarial messages if doing worst‑case analysis), run the verifier against a non‑matching object, and record whether the verifier incorrectly accepts.
-	\item The empirical false‑accept probability is $\hat p = m/N$ where $m$ is the number of observed false accepts. We compute Wilson‑score 95\% confidence intervals for small $\hat p$ when needed.
+    \item \textbf{Generate:} The robot samples its sensors to generate the full state message $S_t$ of size $n_{data}$.
+    \item \textbf{Transmit:} The entire payload $S_t$ is transmitted over the channel. This step consumes bandwidth proportional to the state dimension, regardless of whether $S_t$ has changed significantly or matches the DT's prediction.
+    \item \textbf{Verify/Update:} The DT receives the message, overwrites its local prediction $\hat{S}_t$ with the received $S_t$, and confirms the update.
+\end{enumerate}
+This process is robust but inefficient, as the \textbf{Transmit} stage imposes a heavy, constant latency penalty ($T_{trans} = n_{data}/B$).
+
+\subsection{Proposed: Identification (ID) Data Flow}
+The identification-based protocol introduces computational intelligence to reduce communication load. As shown in Figure~\ref{fig:id_flow}, the pipeline is expanded to five stages, introducing a ``Verify-then-Correct'' logic:
+
+\begin{figure}[htbp]
+    \centering
+    % Ensure you have the file 'figures/ID.png'
+    \includegraphics[width=0.8\textwidth]{figures/ID.png}
+    \caption{Data flow of ID Synchronization: High-bandwidth transmission is replaced by local encoding and conditional fallback.}
+    \label{fig:id_flow}
+\end{figure}
+
+\begin{enumerate}
+    \item \textbf{Generate:} Both the Robot and the DT independently generate their respective state views: the actual state $S_t$ and the predicted state $\hat{S}_t$.
+    \item \textbf{Encode:} Instead of preparing the full message for transmission, the Robot computes a compact signature (verifier) $v = E(S_t, r)$ using a shared seed $r$. Simultaneously, the DT computes its local reference $\hat{v} = E(\hat{S}_t, r)$. This step introduces a computational latency ($t_{ver}$) but drastically compresses the data.
+    \item \textbf{Transmit:} Only the short verifier $v$ (size $n_{ver} \ll n_{data}$) is sent over the channel.
+    \item \textbf{Verify:} The DT compares the received $v$ with its local $\hat{v}$.
+    \item \textbf{Sync (Conditional):} 
+    \begin{itemize}
+        \item If $v = \hat{v}$, the process terminates (Done).
+        \item If $v \neq \hat{v}$, a mismatch is detected. The system enters a fallback mode, requesting the full transmission of $S_t$ to resynchronize.
+    \end{itemize}
 \end{enumerate}
 
-For configurations with extremely rare events (e.g., RSID with parameters that drive $p$ below $10^{-4}$), we run up to $N=10^6$ trials as budget allows. Scripts store raw counts and CSVs (see \texttt{experiments/results/fig2\_results.csv}).
+\section{Encoding Mechanisms and Reliability Analysis}
+\label{sec:reliability_analysis}
 
-\section{Parameter Sweep and Plots}
-The experimental sweep varies these parameters to reproduce the baseline figures and to characterize latency:
+The safety of the ID flow depends on the reliability of the \textbf{Verify} stage. A critical failure occurs if the states differ ($S_t \neq \hat{S}_t$) but their verifiers collide ($v = \hat{v}$), defined as a Type II Error ($p_{miss}$). We investigate two distinct encoding mechanisms, detailing their construction and theoretical error bounds.
+
+\subsection{Algebraic Construction and Error Analysis (RS-ID)}
+\label{sec:rsid_proof}
+
+The core challenge of the RS-ID scheme is to map a high-dimensional state vector $S$ of length $n_{data}$ into a single element within a finite field $\mathbb{F}_q$, where the field size $q = 2^{n_{ver}}$ is determined by the output bandwidth constraint.
+
+\textbf{Polynomial Construction (The ``Chunking'' Process)}
+Since the operations are defined over $\mathbb{F}_{q}$, a state vector $S$ typically exceeds the capacity of a single field element (i.e., $n_{data} \gg n_{ver}$). To resolve this dimensionality mismatch, we decompose the bitstream $S$ into $k$ segments, where each segment represents a coefficient in the field:
+\begin{equation}
+    k = \left\lceil \frac{n_{data}}{n_{ver}} \right\rceil
+\end{equation}
+Let $S$ be represented as a vector of coefficients $\{s_0, s_1, \dots, s_{k-1}\}$, where each $s_i \in \mathbb{F}_q$. We then construct a polynomial $P_S(x)$ of degree at most $k-1$:
+\begin{equation}
+    P_S(x) = \sum_{i=0}^{k-1} s_i x^i
+\end{equation}
+The verifier $v$ is obtained by evaluating this polynomial at a shared random seed $r$: $v = P_S(r)$.
+
+\textbf{Proof of Collision Probability}
+A Type II error (Miss) occurs when the Digital Twin predicts an incorrect state $\hat{S} \neq S$, yet the generated verifiers are identical ($P_{\hat{S}}(r) = P_S(r)$).
+We define a \textit{difference polynomial} $\Delta(x)$:
+\begin{equation}
+    \Delta(x) = P_S(x) - P_{\hat{S}}(x)
+\end{equation}
+Since $S \neq \hat{S}$, at least one coefficient differs, making $\Delta(x)$ a non-zero polynomial with a degree $\text{deg}(\Delta) \leq k-1$.
+A collision event is mathematically equivalent to finding a root of this difference polynomial: $\Delta(r) = 0$.
+
+We invoke the \textbf{Schwartz-Zippel Lemma} (Lemma 1 in~\cite{schwartz1980fast}), which states that a non-zero polynomial of degree $d$ over a field $\mathbb{F}_q$ has at most $d$ roots.
+Mapping this theorem to our system parameters:
 \begin{itemize}
-	\item Field/exponent parameters (e.g., RSID \texttt{gf\_exp} values mapping to \texttt{n\_ver} in bits), typically values corresponding to the 12 plotted points in Fig.2.
-	\item Verifier lengths $n_{\text{ver}}$ (bytes) and payload sizes $n_{\text{data}}$ (we report results for 96 bytes and 4001 bytes as representative small and large payloads).
-	\item Bandwidths $B\in\{1,10,100\}\ \text{Mbps}$ for latency curves (converted to bytes/s in code).
+    \item The polynomial degree $d$ corresponds to the chunk count $k \approx n_{data}/n_{ver}$.
+    \item The sample space size corresponds to the field size $q = 2^{n_{ver}}$.
+\end{itemize}
+Consequently, for a uniformly distributed random seed $r$, the probability of collision is bounded by:
+\begin{equation}
+    P_{miss}^{RS} = \Pr[\Delta(r) = 0] \leq \frac{\text{deg}(\Delta)}{q} < \frac{k}{2^{n_{ver}}} = \frac{\lceil n_{data}/n_{ver} \rceil}{2^{n_{ver}}}
+    \label{eq:rsid_bound}
+\end{equation}
+
+\textbf{Theoretical Implication}
+This derivation highlights the structural trade-off in algebraic identification. The term $k$ in the numerator represents the complexity of the data: as the data size $n_{data}$ grows, the polynomial becomes more complex (higher degree), increasing the number of potential roots (collisions). Therefore, to maintain a constant safety margin $P_{miss}$, the verifier length $n_{ver}$ must scale logarithmically with the data size.
+
+\subsection{Cryptographic Construction and Error Analysis (SHA-256)}
+\label{sec:sha256_proof}
+
+Unlike the algebraic structure of RS-ID, the security of hash-based identification relies on computational hardness assumptions. We verify the state using a truncated cryptographic hash function (SHA-256):
+\begin{equation}
+    v = \text{Truncate}(\text{SHA-256}(S || r), n_{ver})
+\end{equation}
+where $||$ denotes concatenation with the random seed $r$.
+
+\textbf{Random Oracle Assumption}
+To analyze the collision probability theoretically, we adopt the \textbf{Random Oracle Model (ROM)} paradigm introduced by Bellare and Rogaway~\cite{bellare1993random}. In this model, the hash function $H(\cdot)$ is idealized as a mathematical oracle that maps every unique input query to a response selected \textbf{uniformly and independently} from the output domain $\{0, 1\}^{n_{ver}}$.
+
+\textbf{Proof of Collision Probability (Derivation from Uniformity)}
+Under the ROM, for any robot state $S$, the hash output $H(S||r)$ is a random variable following a uniform distribution over the verifier space of size $N = 2^{n_{ver}}$.
+Given a pre-calculated verifier $\hat{v}$ from the Digital Twin, the probability of a collision (Type II error) is equivalent to the probability that a uniformly selected random value hits a specific target in the sample space.
+\begin{equation}
+    P_{miss}^{SHA} = \Pr[H(S||r) = \hat{v}] = \frac{1}{|\{0, 1\}^{n_{ver}}|} = \frac{1}{2^{n_{ver}}}
+    \label{eq:sha_bound}
+\end{equation}
+This derivation relies on the property that in a uniform distribution, the probability of any single outcome is the reciprocal of the sample space size.
+
+\textbf{Comparative Analysis: RS-ID vs. SHA-256}
+A critical distinction arises when comparing this bound with Equation~\eqref{eq:rsid_bound} (the RS-ID bound).
+\begin{itemize}
+    \item \textbf{RS-ID Dependency:} The error probability in RS-ID scales linearly with the data size ($k \approx n_{data}/n_{ver}$), reflecting the geometric constraint that higher-degree polynomials have more roots.
+    \item \textbf{SHA-256 Independence:} In contrast, under the Random Oracle assumption, the error probability for SHA-256 is \textbf{invariant} to the input data size $n_{data}$.
+\end{itemize}
+This property makes the cryptographic approach structurally more robust for large-scale state vectors (e.g., LiDAR point clouds), as the ``collision risk'' does not accumulate with data length. However, this comes at the cost of losing the unconditional algebraic guarantee provided by the Schwartz-Zippel Lemma, replacing it with a computational assumption.
+
+\subsection{Tolerance-Based Verification (K-ID)}
+\label{sec:kid_model}
+The ID data flow described in Section~\ref{sec:system_model} assumes a strict equality check between a single predicted state $\hat{S}_t$ and the true state $S_t$. In practice, however, many cyber-physical systems can tolerate bounded deviations without requiring a full resynchronization. We therefore extend the verification stage to a \textit{tolerance-based} rule, referred to as \textbf{K-ID}.
+
+\textbf{Acceptable Set:}
+Given the DT prediction $\hat{S}_t$ and a tolerance radius $K$, the DT defines an acceptable set
+\begin{equation}
+    \mathcal{A}_K(\hat{S}_t)=\{s\mid \lVert s-\hat{S}_t\rVert\le K\}.
+\end{equation}
+In the experiments in this thesis, we use a scalar state for clarity (so $\lVert\cdot\rVert$ is absolute value), but the K-ID logic generalizes to vector-valued states with an appropriate norm.
+
+\textbf{K-ID Decision Rule:}
+The Robot sends a truncated hash verifier
+\begin{equation}
+    v=\mathrm{Truncate}(\mathrm{SHA256}(S_t\Vert r),n_{ver}).
+\end{equation}
+The DT pre-computes the set of valid verifiers for the acceptable states,
+\begin{equation}
+    \mathcal{V}_K=\{\mathrm{Truncate}(\mathrm{SHA256}(s\Vert r),n_{ver})\mid s\in \mathcal{A}_K(\hat{S}_t)\},
+\end{equation}
+and \textit{accepts} if $v\in\mathcal{V}_K$. Otherwise, it triggers fallback and requests the full payload.
+
+\textbf{Safety Miss Rate:}
+Define an \textit{unsafe} event as the true state lying outside the tolerance region, i.e., $S_t\notin\mathcal{A}_K(\hat{S}_t)$. A miss occurs when the DT accepts despite being unsafe:
+\begin{equation}
+    p_{miss,K}=\Pr[\,v\in\mathcal{V}_K\mid S_t\notin\mathcal{A}_K(\hat{S}_t)\,].
+\end{equation}
+Under the Random Oracle assumption used in Section~\ref{sec:sha256_proof}, the verifier $v$ for an unsafe state is uniform over $\{0,1\}^{n_{ver}}$. Hence, the conditional miss probability is bounded by the fraction of verifier space covered by acceptable hashes:
+\begin{equation}
+    p_{miss,K}^{SHA}\approx \frac{|\mathcal{V}_K|}{2^{n_{ver}}} \le \frac{|\mathcal{A}_K(\hat{S}_t)|}{2^{n_{ver}}}.
+    \label{eq:kid_sha_bound}
+\end{equation}
+This highlights a key trade-off: increasing $K$ enlarges the acceptable set (reducing fallback frequency), but also increases the miss probability conditional on being unsafe.
+
+\textbf{Unsafe Rate and Latency:}
+Let $p_{unsafe}(K)=\Pr[S_t\notin\mathcal{A}_K(\hat{S}_t)]$. If the prediction error $e=S_t-\hat{S}_t$ is modeled as $\mathcal{N}(0,\sigma^2)$, then
+\begin{equation}
+    p_{unsafe}(K)=\Pr[|e|>K]=2\bigl(1-\Phi(K/\sigma)\bigr).
+\end{equation}
+Since fallback is triggered when the DT is unsafe and \emph{does not} miss, the expected latency follows the same structure as Section~\ref{sec:latency_model} but with the tolerance-aware terms:
+\begin{equation}
+    T_{KID} = t_{ver} + \frac{n_{ver}}{B} + p_{unsafe}(K)\bigl(1-p_{miss,K}\bigr)\frac{n_{data}}{B}.
+    \label{eq:kid_latency}
+\end{equation}
+The empirical sweep in Chapter~\ref{ch:results} instantiates this model and visualizes the safety--latency trade-off across $K$ and $n_{ver}$.
+
+\section{End-to-End Latency Model}
+\label{sec:latency_model}
+
+Based on the data flows defined in Section~\ref{sec:system_model}, we mathematically formulate the expected latency.
+
+\textbf{Traditional Latency ($T_{trad}$):}
+Since the traditional flow always executes the full transmission, its latency is deterministic:
+\begin{equation}
+    T_{trad} = \frac{n_{data}}{B}
+\end{equation}
+where $B$ is the channel bandwidth.
+
+\textbf{Identification Latency ($T_{ID}$):}
+The ID flow is probabilistic. The total time includes the mandatory encoding and verifier transmission, plus the conditional penalty for fallback. Matching the stages in Figure~\ref{fig:id_flow}:
+\begin{equation}
+    T_{ID} = \underbrace{t_{ver}}_{\text{Encode}} + \underbrace{\frac{n_{ver}}{B}}_{\text{Transmit Verifier}} + \underbrace{p_{desync}(1 - p_{miss}) \frac{n_{data}}{B}}_{\text{Sync (Fallback Penalty)}}
+\end{equation}
+
+\begin{itemize}
+    \item $t_{ver}$: The computational time for the \textbf{Encode} stage.
+    \item $p_{desync}$: The probability that the DT's prediction fails ($S_t \neq \hat{S}_t$).
+    \item $(1 - p_{miss}) \frac{n_{data}}{B}$: The penalty is incurred only when a desynchronization exists AND is successfully detected by the verifier check.
 \end{itemize}
 
-Plots produced in this chapter's experiments include:
-\begin{itemize}
-	\item False‑accept probability vs verifier length (reproduction of Fig.2).
-	\item Verification compute time vs verifier length.
-	\item Modeled expected latency vs $n_{\text{ver}}$ for multiple bandwidths and for $n_{\text{data}}=96$ and $4001$ (these appear in Chapter~\ref{sec:results_and_evaluation}).
-\end{itemize}
-
-\section{Reproducibility and Implementation Notes}
-All scripts and raw CSV outputs used to create figures are included under the \texttt{experiments/} directory. Key reproducibility notes:
-\begin{itemize}
-	\item The Python environment is an editable install of the repository; dependencies are recorded in \texttt{pyproject.toml} and the \texttt{venv} used is documented in the project README.
-	\item Native bindings (the \texttt{ecidcodes} package and \texttt{libIdcodesLibrary.so}) are required to run the ID encoders. If unavailable, the harness falls back to a pure‑Python stub for functional reproduction (see \path{src/idsys/core/common.py}).
-	\item For timing-sensitive microbenchmarks we recommend pinning the process and disabling frequency scaling where possible; the harness supports \texttt{taskset} and prints the CPU affinity used.
-\end{itemize}
-
-\section{Summary}
-This chapter states the latency model and the measurement protocols used across experiments. The model (compute + conditional bulk transfer) is intentionally simple yet captures the key trade‑off: reducing $p_{\text{miss}}$ by increasing verifier size or multiple tags reduces conditional bulk traffic but may increase compute latency. The next chapter presents experimental results that instantiate the model and quantify these tradeoffs on our platform.
+This model highlights the fundamental trade-off: ID reduces the transmission term from $\frac{n_{data}}{B}$ to $\frac{n_{ver}}{B}$ but adds a computational cost $t_{ver}$. Therefore, ID is advantageous only when the bandwidth $B$ is limited (making transmission expensive) or when the prediction accuracy is high (keeping $p_{desync}$ small).
