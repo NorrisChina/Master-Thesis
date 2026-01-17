@@ -6,7 +6,7 @@ This chapter details the practical setup used to validate the theoretical models
 
 \section{Theoretical Collision Probabilities}
 \label{sec:theoretical_pmiss}
-From the formulas derived in Section \ref{sec:reliability_analysis}, we can pre-calculate the expected theoretical collision probabilities ($p_{miss}$) for our chosen parameters.
+Using the formulas derived in Section~\ref{sec:reliability_analysis}, we compute the theoretical collision probabilities ($p_{miss}$) for the parameter grid used in the evaluation.
 
 \section{Latency Plot Generation}
 To visualize the implications of the hybrid latency model, we generate latency curves parameterized by bandwidth using the Python scripts in the \texttt{experiments/} folder.
@@ -44,40 +44,19 @@ The computed values for $n_{data}\in\{96,4001\}$ bits and $n_{ver}\in\{4,16\}$ b
 In addition to the bit-based latency evaluation, we implement the tolerance-based K-ID model introduced in Section~\ref{sec:kid_model} and perform a parameter sweep over $(K,n_{ver})$ to quantify the safety--latency trade-off of the K-ID decision rule.
 
 \subsection{Model and Metrics}
-The K-ID sweep uses a truncated SHA-256 verifier, and reports the following metrics:
-\begin{itemize}
-        \item \textbf{Miss rate (conditional):} $\Pr[\mathrm{accept}\mid\mathrm{unsafe}]$ as defined in Equation~\eqref{eq:kid_sha_bound}.
-        \item \textbf{Fallback rate:} $\Pr[\mathrm{fallback}]$ over all ticks.
-        \item \textbf{Expected latency:} the hybrid model in Equation~\eqref{eq:kid_latency}.
-        \item \textbf{Speedup:} ratio of traditional transmission time $(n_{data}/B)$ to the expected K-ID latency.
-\end{itemize}
+The K-ID sweep uses a truncated SHA-256 verifier and reports four quantities: the conditional miss rate $\Pr[\mathrm{accept}\mid\mathrm{unsafe}]$ (Equation~\eqref{eq:kid_sha_bound}), the fallback rate $\Pr[\mathrm{fallback}]$ across ticks, the expected latency from the hybrid model (Equation~\eqref{eq:kid_latency}), and the speedup defined as the ratio between the traditional transmission time $(n_{data}/B)$ and the expected K-ID latency.
 
 \subsection{State Space and Quantization}
 To avoid an artificially small discrete domain (which can force the empirical miss rate to become exactly zero for moderate $n_{ver}$), the robot state is modeled as a continuous random variable and then quantized:
-\begin{enumerate}
-        \item Sample $S_t\sim\mathcal{N}(\mu,\sigma^2)$, clip to a physical range $[S_{min},S_{max}]$.
-        \item Quantize to resolution $\Delta$ (default $\Delta=0.1$), and hash the resulting integer index.
-\end{enumerate}
+We sample $S_t\sim\mathcal{N}(\mu,\sigma^2)$, clip it to a physical range $[S_{min},S_{max}]$, quantize it to a resolution $\Delta$ (default $\Delta=0.1$), and hash the resulting integer index.
 This yields a discrete domain size of approximately $(S_{max}-S_{min})/\Delta + 1$.
 
 \subsection{Parameter Grid}
-Unless otherwise stated, the sweep uses:
-\begin{itemize}
-        \item Payload size: $n_{data}=96$ bits.
-        \item Bandwidth: $B=1$ Mbps.
-        \item Compute overhead: $t_{ver}=2.13\,\mu s$ (SHA-256, 96 bits; Table~\ref{tab:tver_results_bits}).
-        \item State distribution: $\mu=50$, $\sigma=12$, clipped to $[0,100]$.
-        \item Quantization: $\Delta=0.1$.
-        \item Sweep: $n_{ver}\in\{4,8,12,16\}$ bits and $K\in\{2,5,10,20\}$.
-        \item Monte Carlo ticks: 200{,}000 per configuration, seed = 42.
-\end{itemize}
+Unless otherwise stated, we use a 96-bit payload ($n_{data}=96$ bits) at $B=1$ Mbps with a compute overhead of $t_{ver}=2.13\,\mu s$ (SHA-256, 96 bits; Table~\ref{tab:tver_results_bits}). The robot state follows a clipped Gaussian distribution with $\mu=50$ and $\sigma=12$ on $[0,100]$ and is quantized with $\Delta=0.1$. We sweep $n_{ver}\in\{4,8,12,16\}$ and $K\in\{2,5,10,20\}$, using 200{,}000 Monte Carlo ticks per configuration with a fixed seed of 42.
 
 \subsection{Reproducibility}
 The sweep and plot generation are implemented in the \texttt{experiments/} folder:
-\begin{itemize}
-        \item \texttt{experiments/kid\_parameter\_sweep.py}: runs the simulation and optionally writes a CSV.
-        \item \texttt{experiments/plot\_kid\_parameter\_sweep.py}: reads the CSV and produces the figures used in Chapter~\ref{ch:results}.
-\end{itemize}
+The simulation is implemented in \texttt{experiments/kid\_parameter\_sweep.py} (optionally writing a CSV), and the plotting script \texttt{experiments/plot\_kid\_parameter\_sweep.py} reads that CSV and produces the figures used in Chapter~\ref{ch:results}.
 The following commands reproduce the CSV and plots (paths are relative to the repository root):
 \begin{verbatim}
 python3 experiments/kid_parameter_sweep.py \

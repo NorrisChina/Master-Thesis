@@ -37,15 +37,16 @@ Note that the \textbf{mean} values can shift slightly across runs and machines (
 \textbf{Analysis of $t_{ver}$ Results:}
 The measurement results in Table~\ref{tab:tver_results_bits} reveal distinct performance characteristics between the algebraic (RS-ID) and cryptographic (SHA-256) approaches:
 
-\begin{enumerate}
-    \item \textbf{Stability of SHA-256:} Consistent with the theoretical discussion in Section~\ref{sec:reliability_analysis}, the computation time of SHA-256 is largely insensitive to the output verifier length. For the short payload ($n_{data}=96$ bits), the latency remains nearly constant (\textasciitilde 2.2~$\mu s$) when truncating to either $n_{ver}=4$ or $n_{ver}=16$ bits. When increasing the payload to $n_{data}=4001$ bits, the latency rises to \textasciitilde 15~$\mu s$, which is expected due to the block-based processing of SHA.
-    
-    \item \textbf{The Chunking Effect in RS-ID:} A counter-intuitive phenomenon is observed for RS-ID: for the small payload ($n_{data}=96$ bits), increasing the verifier length from $n_{ver}=4$ to $n_{ver}=16$ bits \textit{reduces} the measured latency substantially (from 14.55~$\mu s$ to 3.79~$\mu s$).
-    This can be explained by the polynomial construction mechanism. RS-ID represents the input as $k$ coefficients, where $k=\lceil n_{data}/n_{ver} \rceil$. With $n_{ver}=4$, the data is sliced into 24 chunks, requiring more iterations of field operations. With $n_{ver}=16$, the chunk count drops to 6. For small datasets, the reduction in loop iterations outweighs the increased per-operation cost of arithmetic in a larger field.
-\end{enumerate}
+SHA-256 exhibits stable verification times with respect to the verifier length. Consistent with Section~\ref{sec:reliability_analysis}, the runtime is largely insensitive to the truncation length: for the short payload ($n_{data}=96$ bits), the mean verification time stays close to \textasciitilde 2.2~$\mu s$ for both $n_{ver}=4$ and $n_{ver}=16$ bits. When the payload increases to $n_{data}=4001$ bits, the mean rises to \textasciitilde 15~$\mu s$, which matches the block-based processing structure of SHA.
+
+RS-ID shows a pronounced ``chunking'' effect. For the small payload, increasing the verifier length from $n_{ver}=4$ to $n_{ver}=16$ bits reduces the measured latency (from 14.55~$\mu s$ to 3.79~$\mu s$). This follows directly from the polynomial construction, where the input is represented by $k$ coefficients with $k=\lceil n_{data}/n_{ver} \rceil$. With $n_{ver}=4$, the 96-bit payload is sliced into 24 coefficients; with $n_{ver}=16$, the coefficient count drops to 6. In this regime, the reduced loop count outweighs the higher per-operation cost of arithmetic in the larger field.
 
 \subsection{Theoretical Collision Probability ($p_{miss}$)}
-Based on the bounds derived in Chapter~\ref{ch:design_methodology} (Equations~\eqref{eq:sha_bound} and~\eqref{eq:rsid_bound}), we compute the theoretical collision probability $p_{miss}$ for the parameter grid used in the latency model. Note that for RS-ID, if the polynomial degree exceeds the field size, the bound is capped at 1.0.
+Based on the bounds derived in Chapter~\ref{ch:design_methodology} (Equations~\eqref{eq:sha_bound} and~\eqref{eq:rsid_bound}), we compute the theoretical collision probability $p_{miss}$ for the parameter grid used in the latency model.
+
+For RS-ID, the probability bound in Equation~\eqref{eq:rsid_bound} depends on the ratio between the polynomial degree and the field size. Using an $n_{ver}$-bit symbol implies a field size of $q=2^{n_{ver}}$, while the polynomial degree is set by how many symbols are needed to represent the payload: $d=k-1$ with $k=\lceil n_{data}/n_{ver} \rceil$. When $d\ge q$, the bound becomes at least 1 and is therefore capped at $p_{miss}=1.0$.
+
+This explains the saturation for $n_{ver}=4$: the field has only $q=2^4=16$ elements, but even the short payload ($n_{data}=96$ bits) requires $k=\lceil 96/4\rceil=24$ symbols, i.e., $d=23$, which already yields $d/q>1$. The larger payload ($n_{data}=4001$ bits) increases $k$ further, so the saturation persists. Practically, $p_{miss}=1.0$ means RS-ID cannot reliably distinguish mismatches under this parameterization, so $n_{ver}=4$ is not a meaningful operating point for RS-ID in our setting.
 
 \begin{table}[!htbp] % Prefer LaTeX float placement (float package not required)
     \centering
@@ -74,53 +75,46 @@ We first evaluate the expected latency as a function of channel bandwidth ($B$).
 
 \begin{figure}[!htbp]
     \centering
-    \begin{minipage}[t]{0.49\textwidth}
+    \begin{subfigure}[t]{0.49\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/plots/latency_empirical_bandwidth_96bits.png}
-        \captionof{figure}{Expected latency vs. bandwidth for $n_{data}=96$ bits ($p_{desync}=0.1$).}
+        \includegraphics[height=0.26\textheight,keepaspectratio]{figures/plots/latency_empirical_bandwidth_96bits.png}
+        \caption{Expected latency vs. bandwidth for $n_{data}=96$ bits ($p_{desync}=0.1$).}
         \label{fig:latency_vs_bandwidth_96bits}
-    \end{minipage}\hfill
-    \begin{minipage}[t]{0.49\textwidth}
+    \end{subfigure}\hfill
+    \begin{subfigure}[t]{0.49\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/plots/latency_empirical_bandwidth_4001bits.png}
-        \captionof{figure}{Expected latency vs. bandwidth for $n_{data}=4001$ bits ($p_{desync}=0.1$).}
+        \includegraphics[height=0.26\textheight,keepaspectratio]{figures/plots/latency_empirical_bandwidth_4001bits.png}
+        \caption{Expected latency vs. bandwidth for $n_{data}=4001$ bits ($p_{desync}=0.1$).}
         \label{fig:latency_vs_bandwidth_4001bits}
-    \end{minipage}
+    \end{subfigure}
 \end{figure}
 
 \textbf{Discussion (Bandwidth Trade-off):}
-The results illustrate the dominance of the Identification scheme in bandwidth-constrained environments. 
-\begin{itemize}
-    \item \textbf{Low Bandwidth Regime ($B < 1$ Mbps):} The transmission time of raw data dominates the Traditional latency. The ID scheme offers an order-of-magnitude reduction by transmitting only the compact verifier.
-    \item \textbf{High Bandwidth Regime ($B > 10$ Mbps):} As transmission becomes instantaneous, the latency floor is determined by the computational overhead $t_{ver}$. Consequently, the Traditional scheme (which has zero encoding overhead) eventually outperforms the ID schemes, creating a clear "Cross-over Point."
-\end{itemize}
+The curves exhibit a clear regime split. In the low-bandwidth regime ($B<1$ Mbps), raw transmission dominates the traditional baseline, and identification reduces latency by replacing the full payload with a compact verifier. In the high-bandwidth regime ($B>10$ Mbps), transmission becomes cheap and the compute term $t_{ver}$ sets the latency floor; beyond a crossover point, the traditional scheme (with zero encoding overhead) becomes faster.
 
 \subsection{Sensitivity to Prediction Quality}
 Next, we examine the impact of the Digital Twin's prediction accuracy ($p_{desync}$) at a fixed bandwidth ($B=5$ Mbps).
 
 \begin{figure}[!htbp]
     \centering
-    \begin{minipage}[t]{0.49\textwidth}
+    \begin{subfigure}[t]{0.49\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/plots/latency_vs_desync_96bits.png}
-        \captionof{figure}{Expected latency vs. $p_{desync}$ for $n_{data}=96$ bits ($B=5$ Mbps).}
+        \includegraphics[height=0.26\textheight,keepaspectratio]{figures/plots/latency_vs_desync_96bits.png}
+        \caption{Expected latency vs. $p_{desync}$ for $n_{data}=96$ bits ($B=5$ Mbps).}
         \label{fig:latency_vs_desync_96bits}
-    \end{minipage}\hfill
-    \begin{minipage}[t]{0.49\textwidth}
+    \end{subfigure}\hfill
+    \begin{subfigure}[t]{0.49\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/plots/latency_vs_desync_4001bits.png}
-        \captionof{figure}{Expected latency vs. $p_{desync}$ for $n_{data}=4001$ bits ($B=5$ Mbps).}
+        \includegraphics[height=0.26\textheight,keepaspectratio]{figures/plots/latency_vs_desync_4001bits.png}
+        \caption{Expected latency vs. $p_{desync}$ for $n_{data}=4001$ bits ($B=5$ Mbps).}
         \label{fig:latency_vs_desync_4001bits}
-    \end{minipage}
+    \end{subfigure}
 \end{figure}
 
 \textbf{Discussion (Prediction Quality):}
-\begin{itemize}
-    \item \textbf{Break-even Analysis:} For the short payload (Fig.~\ref{fig:latency_vs_desync_96bits}), the ID-SHA curves intersect the Traditional line at approximately $p_{desync} \approx 0.8$. This implies that ID is beneficial as long as the Digital Twin's prediction accuracy exceeds 20\%. For the large payload (Fig.~\ref{fig:latency_vs_desync_4001bits}), the transmission penalty is so high that ID-SHA remains superior across nearly the entire range of $p_{desync}$.
-    
-    \item \textbf{Anomaly Analysis (RS-ID $n_{ver}=4$):} 
-    A notable anomaly appears in the RS-ID results for $n_{ver}=4$ bits (orange line in Fig.~\ref{fig:latency_vs_desync_96bits}), which appears flat and low. This is a \textbf{theoretical artifact} caused by the saturation of collision probability ($p_{miss}=1.0$, see Table~\ref{tab:pmiss_results_bits}). Mathematically, this sets the fallback penalty term to zero. In reality, this represents a catastrophic failure where desynchronization is never detected. Therefore, this configuration is invalid for safety-critical systems despite its apparent low latency.
-\end{itemize}
+For the short payload (Figure~\ref{fig:latency_vs_desync_96bits}), the ID-SHA curves intersect the traditional baseline at approximately $p_{desync} \approx 0.8$. Identification therefore remains beneficial as long as the Digital Twin prediction accuracy exceeds roughly 20\%. For the large payload (Figure~\ref{fig:latency_vs_desync_4001bits}), transmission dominates so strongly that ID-SHA stays favorable across nearly the entire range of $p_{desync}$.
+
+An apparent anomaly occurs for RS-ID with $n_{ver}=4$ bits (orange curve in Figure~\ref{fig:latency_vs_desync_96bits}). The curve appears flat and low because the collision probability saturates at $p_{miss}=1.0$ (Table~\ref{tab:pmiss_results_bits}), which sets the fallback penalty term to zero in the latency expression. Interpreted operationally, this configuration fails catastrophically: desynchronization is never detected. It is therefore not a viable operating point for safety-critical use, regardless of its apparent latency.
 
 \section{K-ID Safety--Latency Trade-off}
 \label{sec:kid_results}
@@ -131,31 +125,37 @@ Figure~\ref{fig:kid_sweep_overview} summarizes the main metrics. The miss rate i
 
 \begin{figure}[!htbp]
     \centering
-    \begin{subfigure}[t]{0.49\textwidth}
+    \begin{subfigure}[t]{\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/plots/kid_sweep_miss_rate.png}
-        \caption{Conditional miss rate $\Pr[\mathrm{accept}\mid\mathrm{unsafe}]$.}
+        \includegraphics[height=0.16\textheight,keepaspectratio]{figures/plots/kid_sweep_miss_rate.png}
+        \caption{(a) Conditional miss rate $\Pr[\mathrm{accept}\mid\mathrm{unsafe}]$. It decreases strongly with $n_{ver}$ and increases with $K$ because a larger acceptable set increases collision opportunities.}
         \label{fig:kid_miss_rate}
-    \end{subfigure}\hfill
-    \begin{subfigure}[t]{0.49\textwidth}
+    \end{subfigure}
+
+    \vspace{0.25em}
+
+    \begin{subfigure}[t]{\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/plots/kid_sweep_speedup.png}
-        \caption{Speedup over traditional transmission.}
+        \includegraphics[height=0.16\textheight,keepaspectratio]{figures/plots/kid_sweep_speedup.png}
+        \caption{(b) Speedup over traditional transmission. Speedup is highest when fallbacks are rare (large $K$) and the verifier is short (small $n_{ver}$), but this comes with higher conditional miss risk.}
         \label{fig:kid_speedup}
     \end{subfigure}
 
-    \vspace{0.6em}
+    \vspace{0.25em}
 
-    \begin{subfigure}[t]{0.49\textwidth}
+    \begin{subfigure}[t]{\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/plots/kid_sweep_fallback_rate.png}
-        \caption{Fallback probability $\Pr[\mathrm{fallback}]$.}
+        \includegraphics[height=0.16\textheight,keepaspectratio]{figures/plots/kid_sweep_fallback_rate.png}
+        \caption{(c) Fallback probability $\Pr[\mathrm{fallback}]$. It decreases with $K$ (unsafe states become rarer) and typically increases with $n_{ver}$ due to fewer accidental acceptances when unsafe.}
         \label{fig:kid_fallback_rate}
-    \end{subfigure}\hfill
-    \begin{subfigure}[t]{0.49\textwidth}
+    \end{subfigure}
+
+    \vspace{0.25em}
+
+    \begin{subfigure}[t]{\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/plots/kid_sweep_latency.png}
-        \caption{Expected latency under Equation~\eqref{eq:kid_latency}.}
+        \includegraphics[height=0.16\textheight,keepaspectratio]{figures/plots/kid_sweep_latency.png}
+        \caption{(d) Expected latency under Equation~\eqref{eq:kid_latency}. Latency follows the fallback behavior: larger $K$ lowers latency via fewer fallbacks, while larger $n_{ver}$ increases the verifier term and can increase fallbacks.}
         \label{fig:kid_latency}
     \end{subfigure}
 
@@ -168,10 +168,7 @@ Increasing $n_{ver}$ reduces the conditional miss rate approximately exponential
 
 \textbf{Analysis (Effect of $K$):}
 Increasing $K$ enlarges the acceptable set. This has two opposing effects that are visible in Figure~\ref{fig:kid_sweep_overview}:
-\begin{itemize}
-    \item The conditional miss rate $\Pr[\mathrm{accept}\mid\mathrm{unsafe}]$ increases with $K$, because more acceptable states mean more opportunities for a hash collision with an unsafe verifier.
-    \item The fallback rate and latency decrease with $K$ because the system is unsafe less often (fewer ticks lie outside the tolerance interval), so the expensive full-payload fallback is triggered less frequently.
-\end{itemize}
+The conditional miss rate $\Pr[\mathrm{accept}\mid\mathrm{unsafe}]$ increases with $K$, since enlarging the acceptable set creates more opportunities for a hash collision with an unsafe verifier. At the same time, the fallback rate and the expected latency decrease with $K$ because the system is unsafe less often; fewer ticks lie outside the tolerance interval, and full-payload fallbacks are triggered less frequently.
 This demonstrates the fundamental K-ID trade-off: a larger tolerance improves performance and reduces fallback, but raises the conditional risk of accepting an unsafe state.
 
 \subsection{Pareto Frontier Interpretation}
@@ -210,31 +207,37 @@ Figure~\ref{fig:kid_uniform_compare} shows the resulting metrics side-by-side fo
 
 \begin{figure}[!htbp]
     \centering
-    \begin{subfigure}[t]{0.49\textwidth}
+    \begin{subfigure}[t]{\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/plots/kid_sweep_uniform_both_miss_rate.png}
-        \caption{Conditional miss rate (uniform error), by system.}
+        \includegraphics[height=0.16\textheight,keepaspectratio]{figures/plots/kid_sweep_uniform_both_miss_rate.png}
+        \caption{(a) Conditional miss rate (uniform error), by system.}
         \label{fig:kid_uniform_miss}
-    \end{subfigure}\hfill
-    \begin{subfigure}[t]{0.49\textwidth}
+    \end{subfigure}
+
+    \vspace{0.25em}
+
+    \begin{subfigure}[t]{\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/plots/kid_sweep_uniform_both_speedup.png}
-        \caption{Speedup (uniform error), by system.}
+        \includegraphics[height=0.16\textheight,keepaspectratio]{figures/plots/kid_sweep_uniform_both_speedup.png}
+        \caption{(b) Speedup (uniform error), by system.}
         \label{fig:kid_uniform_speedup}
     \end{subfigure}
 
-    \vspace{0.6em}
+    \vspace{0.25em}
 
-    \begin{subfigure}[t]{0.49\textwidth}
+    \begin{subfigure}[t]{\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/plots/kid_sweep_uniform_both_pareto.png}
-        \caption{Pareto trade-off: speedup vs. $P(\mathrm{accept}\mid\mathrm{unsafe})$.}
+        \includegraphics[height=0.16\textheight,keepaspectratio]{figures/plots/kid_sweep_uniform_both_pareto.png}
+        \caption{(c) Pareto trade-off: speedup vs. $P(\mathrm{accept}\mid\mathrm{unsafe})$.}
         \label{fig:kid_uniform_pareto}
-    \end{subfigure}\hfill
-    \begin{subfigure}[t]{0.49\textwidth}
+    \end{subfigure}
+
+    \vspace{0.25em}
+
+    \begin{subfigure}[t]{\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/plots/kid_sweep_uniform_both_pareto_overall_risk.png}
-        \caption{Pareto trade-off: speedup vs. $P(\mathrm{unsafe}\cap\mathrm{accept})$.}
+        \includegraphics[height=0.16\textheight,keepaspectratio]{figures/plots/kid_sweep_uniform_both_pareto_overall_risk.png}
+        \caption{(d) Pareto trade-off: speedup vs. $P(\mathrm{unsafe}\cap\mathrm{accept})$.}
         \label{fig:kid_uniform_pareto_overall}
     \end{subfigure}
 

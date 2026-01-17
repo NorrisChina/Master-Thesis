@@ -10,7 +10,7 @@ This chapter formulates the system model for identification-based synchronizatio
 We consider a networked control system where a Robot (Sender) synchronizes its state $S_t$ with a Digital Twin (Receiver) maintaining a prediction $\hat{S}_t$. The fundamental difference between the two approaches lies in their data processing pipelines.
 
 \subsection{Baseline: Traditional Transmission Flow}
-The standard synchronization protocol follows a linear, ``always-on'' approach. As illustrated in Figure~\ref{fig:trad_flow}, the data flow consists of three sequential stages:
+The standard synchronization protocol follows a linear, ``always-on'' approach. As illustrated in Figure~\ref{fig:trad_flow}, the robot first samples its sensors to generate the full state message $S_t$ (size $n_{data}$) and transmits the entire payload over the channel. The Digital Twin receives the message, overwrites its local prediction $\hat{S}_t$ with the received $S_t$, and confirms the update.
 
 \begin{figure}[htbp]
     \centering
@@ -20,15 +20,10 @@ The standard synchronization protocol follows a linear, ``always-on'' approach. 
     \label{fig:trad_flow}
 \end{figure}
 
-\begin{enumerate}
-    \item \textbf{Generate:} The robot samples its sensors to generate the full state message $S_t$ of size $n_{data}$.
-    \item \textbf{Transmit:} The entire payload $S_t$ is transmitted over the channel. This step consumes bandwidth proportional to the state dimension, regardless of whether $S_t$ has changed significantly or matches the DT's prediction.
-    \item \textbf{Verify/Update:} The DT receives the message, overwrites its local prediction $\hat{S}_t$ with the received $S_t$, and confirms the update.
-\end{enumerate}
-This process is robust but inefficient, as the \textbf{Transmit} stage imposes a heavy, constant latency penalty ($T_{trans} = n_{data}/B$).
+This process is robust but inefficient, since the transmission cost is paid unconditionally. Under this baseline, the transmission latency is deterministic and scales directly with the state size, $T_{trans} = n_{data}/B$.
 
 \subsection{Proposed: Identification (ID) Data Flow}
-The identification-based protocol introduces computational intelligence to reduce communication load. As shown in Figure~\ref{fig:id_flow}, the pipeline is expanded to five stages, introducing a ``Verify-then-Correct'' logic:
+The identification-based protocol reduces communication load by verifying consistency before sending the full state. As shown in Figure~\ref{fig:id_flow}, both the Robot and the DT first generate their respective state views, $S_t$ and $\hat{S}_t$. The Robot computes a compact verifier $v = E(S_t, r)$ using a shared seed $r$, while the DT computes the corresponding reference $\hat{v} = E(\hat{S}_t, r)$ locally. Only the short verifier $v$ (size $n_{ver} \ll n_{data}$) is transmitted. The DT then compares $v$ and $\hat{v}$: if they match, the protocol terminates; if they differ, the DT triggers fallback and requests the full payload $S_t$ to resynchronize.
 
 \begin{figure}[htbp]
     \centering
@@ -38,62 +33,32 @@ The identification-based protocol introduces computational intelligence to reduc
     \label{fig:id_flow}
 \end{figure}
 
-\begin{enumerate}
-    \item \textbf{Generate:} Both the Robot and the DT independently generate their respective state views: the actual state $S_t$ and the predicted state $\hat{S}_t$.
-    \item \textbf{Encode:} Instead of preparing the full message for transmission, the Robot computes a compact signature (verifier) $v = E(S_t, r)$ using a shared seed $r$. Simultaneously, the DT computes its local reference $\hat{v} = E(\hat{S}_t, r)$. This step introduces a computational latency ($t_{ver}$) but drastically compresses the data.
-    \item \textbf{Transmit:} Only the short verifier $v$ (size $n_{ver} \ll n_{data}$) is sent over the channel.
-    \item \textbf{Verify:} The DT compares the received $v$ with its local $\hat{v}$.
-    \item \textbf{Sync (Conditional):} 
-    \begin{itemize}
-        \item If $v = \hat{v}$, the process terminates (Done).
-        \item If $v \neq \hat{v}$, a mismatch is detected. The system enters a fallback mode, requesting the full transmission of $S_t$ to resynchronize.
-    \end{itemize}
-\end{enumerate}
+\vspace{0.25em}
 
 \section{Encoding Mechanisms and Reliability Analysis}
 \label{sec:reliability_analysis}
 
 The safety of the ID flow depends on the reliability of the \textbf{Verify} stage. A critical failure occurs if the states differ ($S_t \neq \hat{S}_t$) but their verifiers collide ($v = \hat{v}$), defined as a Type II Error ($p_{miss}$). We investigate two distinct encoding mechanisms, detailing their construction and theoretical error bounds.
 
-\subsection{Algebraic Construction and Error Analysis (RS-ID)}
-\label{sec:rsid_proof}
+\subsection{Algebraic Implementation and Error Bound (RS-ID)}
+\label{sec:rsid_implementation}
 
-The core challenge of the RS-ID scheme is to map a high-dimensional state vector $S$ of length $n_{data}$ into a single element within a finite field $\mathbb{F}_q$, where the field size $q = 2^{n_{ver}}$ is determined by the output bandwidth constraint.
+To integrate the RS-ID scheme into our synchronization protocol, we map the high-dimensional state vector $S$ of length $n_{data}$ to a polynomial over the finite field $\mathbb{F}_q$, where $q = 2^{n_{ver}}$.
 
-\textbf{Polynomial Construction (The ``Chunking'' Process)}
-Since the operations are defined over $\mathbb{F}_{q}$, a state vector $S$ typically exceeds the capacity of a single field element (i.e., $n_{data} \gg n_{ver}$). To resolve this dimensionality mismatch, we decompose the bitstream $S$ into $k$ segments, where each segment represents a coefficient in the field:
+\textbf{Polynomial Decomposition}
+Following the construction detailed in Section~\ref{subsec:rsid_geometry}, the bitstream $S$ is sliced into $k$ coefficients. For the specific bandwidth constraints of our system model, the number of coefficients is determined by:
 \begin{equation}
     k = \left\lceil \frac{n_{data}}{n_{ver}} \right\rceil
 \end{equation}
-Let $S$ be represented as a vector of coefficients $\{s_0, s_1, \dots, s_{k-1}\}$, where each $s_i \in \mathbb{F}_q$. We then construct a polynomial $P_S(x)$ of degree at most $k-1$:
-\begin{equation}
-    P_S(x) = \sum_{i=0}^{k-1} s_i x^i
-\end{equation}
-The verifier $v$ is obtained by evaluating this polynomial at a shared random seed $r$: $v = P_S(r)$.
+The system generates the verifier $v$ by evaluating the polynomial $P_S(x) = \sum_{i=0}^{k-1} s_i x^i$ at the shared seed $r$.
 
-\textbf{Proof of Collision Probability}
-A Type II error (Miss) occurs when the Digital Twin predicts an incorrect state $\hat{S} \neq S$, yet the generated verifiers are identical ($P_{\hat{S}}(r) = P_S(r)$).
-We define a \textit{difference polynomial} $\Delta(x)$:
+\textbf{Reliability Model}
+For the experimental evaluation and latency modeling, we apply the theoretical upper bound derived in Chapter~\ref{ch:background} (Schwartz-Zippel Lemma). The probability of a Type II error (collision) is strictly modeled as:
 \begin{equation}
-    \Delta(x) = P_S(x) - P_{\hat{S}}(x)
-\end{equation}
-Since $S \neq \hat{S}$, at least one coefficient differs, making $\Delta(x)$ a non-zero polynomial with a degree $\text{deg}(\Delta) \leq k-1$.
-A collision event is mathematically equivalent to finding a root of this difference polynomial: $\Delta(r) = 0$.
-
-We invoke the \textbf{Schwartz-Zippel Lemma} (Lemma 1 in~\cite{schwartz1980fast}), which states that a non-zero polynomial of degree $d$ over a field $\mathbb{F}_q$ has at most $d$ roots.
-Mapping this theorem to our system parameters:
-\begin{itemize}
-    \item The polynomial degree $d$ corresponds to the chunk count $k \approx n_{data}/n_{ver}$.
-    \item The sample space size corresponds to the field size $q = 2^{n_{ver}}$.
-\end{itemize}
-Consequently, for a uniformly distributed random seed $r$, the probability of collision is bounded by:
-\begin{equation}
-    P_{miss}^{RS} = \Pr[\Delta(r) = 0] \leq \frac{\text{deg}(\Delta)}{q} < \frac{k}{2^{n_{ver}}} = \frac{\lceil n_{data}/n_{ver} \rceil}{2^{n_{ver}}}
+    P_{miss}^{RS} \leq \frac{k}{q} = \frac{\lceil n_{data}/n_{ver} \rceil}{2^{n_{ver}}}
     \label{eq:rsid_bound}
 \end{equation}
-
-\textbf{Theoretical Implication}
-This derivation highlights the structural trade-off in algebraic identification. The term $k$ in the numerator represents the complexity of the data: as the data size $n_{data}$ grows, the polynomial becomes more complex (higher degree), increasing the number of potential roots (collisions). Therefore, to maintain a constant safety margin $P_{miss}$, the verifier length $n_{ver}$ must scale logarithmically with the data size.
+This equation serves as the reliability constraint for the design: to ensure robust identification ($P_{miss} \ll 1$), the verifier length $n_{ver}$ is selected such that the field size exponentially exceeds the data complexity $k$.
 
 \subsection{Cryptographic Construction and Error Analysis (SHA-256)}
 \label{sec:sha256_proof}
@@ -101,6 +66,7 @@ This derivation highlights the structural trade-off in algebraic identification.
 Unlike the algebraic structure of RS-ID, the security of hash-based identification relies on computational hardness assumptions. We verify the state using a truncated cryptographic hash function (SHA-256):
 \begin{equation}
     v = \text{Truncate}(\text{SHA-256}(S || r), n_{ver})
+    \label{eq:sha_verifier}
 \end{equation}
 where $||$ denotes concatenation with the random seed $r$.
 
@@ -117,12 +83,7 @@ Given a pre-calculated verifier $\hat{v}$ from the Digital Twin, the probability
 This derivation relies on the property that in a uniform distribution, the probability of any single outcome is the reciprocal of the sample space size.
 
 \textbf{Comparative Analysis: RS-ID vs. SHA-256}
-A critical distinction arises when comparing this bound with Equation~\eqref{eq:rsid_bound} (the RS-ID bound).
-\begin{itemize}
-    \item \textbf{RS-ID Dependency:} The error probability in RS-ID scales linearly with the data size ($k \approx n_{data}/n_{ver}$), reflecting the geometric constraint that higher-degree polynomials have more roots.
-    \item \textbf{SHA-256 Independence:} In contrast, under the Random Oracle assumption, the error probability for SHA-256 is \textbf{invariant} to the input data size $n_{data}$.
-\end{itemize}
-This property makes the cryptographic approach structurally more robust for large-scale state vectors (e.g., LiDAR point clouds), as the ``collision risk'' does not accumulate with data length. However, this comes at the cost of losing the unconditional algebraic guarantee provided by the Schwartz-Zippel Lemma, replacing it with a computational assumption.
+Comparing Equation~\eqref{eq:rsid_bound} with Equation~\eqref{eq:sha_bound} highlights a key structural difference. In RS-ID, the error probability scales linearly with the data size ($k \approx n_{data}/n_{ver}$), reflecting the geometric fact that higher-degree polynomials admit more roots. Under the Random Oracle assumption, the SHA-256 collision probability is invariant to $n_{data}$. As a result, the cryptographic approach remains well-behaved for large state vectors (e.g., LiDAR point clouds), but it replaces the unconditional Schwartz--Zippel guarantee with a computational idealization.
 
 \subsection{Tolerance-Based Verification (K-ID)}
 \label{sec:kid_model}
@@ -136,10 +97,7 @@ Given the DT prediction $\hat{S}_t$ and a tolerance radius $K$, the DT defines a
 In the experiments in this thesis, we use a scalar state for clarity (so $\lVert\cdot\rVert$ is absolute value), but the K-ID logic generalizes to vector-valued states with an appropriate norm.
 
 \textbf{K-ID Decision Rule:}
-The Robot sends a truncated hash verifier
-\begin{equation}
-    v=\mathrm{Truncate}(\mathrm{SHA256}(S_t\Vert r),n_{ver}).
-\end{equation}
+The Robot computes the verifier using the same truncated SHA-256 construction as in Equation~\eqref{eq:sha_verifier}, with the current state $S_t$ substituted for $S$.
 The DT pre-computes the set of valid verifiers for the acceptable states,
 \begin{equation}
     \mathcal{V}_K=\{\mathrm{Truncate}(\mathrm{SHA256}(s\Vert r),n_{ver})\mid s\in \mathcal{A}_K(\hat{S}_t)\},
@@ -188,10 +146,6 @@ The ID flow is probabilistic. The total time includes the mandatory encoding and
     T_{ID} = \underbrace{t_{ver}}_{\text{Encode}} + \underbrace{\frac{n_{ver}}{B}}_{\text{Transmit Verifier}} + \underbrace{p_{desync}(1 - p_{miss}) \frac{n_{data}}{B}}_{\text{Sync (Fallback Penalty)}}
 \end{equation}
 
-\begin{itemize}
-    \item $t_{ver}$: The computational time for the \textbf{Encode} stage.
-    \item $p_{desync}$: The probability that the DT's prediction fails ($S_t \neq \hat{S}_t$).
-    \item $(1 - p_{miss}) \frac{n_{data}}{B}$: The penalty is incurred only when a desynchronization exists AND is successfully detected by the verifier check.
-\end{itemize}
+Here, $t_{ver}$ denotes the computation time of the Encode stage, $p_{desync}$ is the probability that the DT prediction fails ($S_t \neq \hat{S}_t$), and the fallback penalty $(1 - p_{miss}) \frac{n_{data}}{B}$ is incurred only when a desynchronization exists and is successfully detected by the verifier.
 
 This model highlights the fundamental trade-off: ID reduces the transmission term from $\frac{n_{data}}{B}$ to $\frac{n_{ver}}{B}$ but adds a computational cost $t_{ver}$. Therefore, ID is advantageous only when the bandwidth $B$ is limited (making transmission expensive) or when the prediction accuracy is high (keeping $p_{desync}$ small).
