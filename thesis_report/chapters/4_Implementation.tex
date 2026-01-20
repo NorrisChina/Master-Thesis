@@ -1,18 +1,123 @@
 \chapter{Implementation}
 \label{sec:implementation}
 
-\section{Experimental Parameters}
-This chapter details the practical setup used to validate the theoretical models from Chapter \ref{ch:design_methodology}. For the bandwidth and $p_{desync}$ sensitivity plots in Chapter~\ref{ch:results}, all experiments are configured with a desynchronization probability of $p_{desync} = 0.1$. We evaluate two data payloads: a small 96-bit message and a larger 4001-bit message. For each payload, we test verifier lengths of $n_{ver} \in \{4, 16\}$ bits, representing a small and a large verifier size.
+This chapter summarizes the practical implementation used to instantiate and evaluate the theoretical models introduced in Chapter~\ref{ch:design_methodology}. The evaluation is organized around three complementary models. First, we implement the end-to-end \gls{id} latency model and generate bandwidth and desynchronization sensitivity plots. Second, we implement the tolerance-based \gls{kid} protocol and perform a parameter sweep over $(K,n_{ver})$ to expose the safety--performance trade-off and identify Pareto-optimal operating points. Third, we implement a time-correlated dynamic model in which \gls{kid} operates under random-walk drift, allowing us to study accumulation effects such as sustained boundary breaches after missed corrections.
 
-\section{Theoretical Collision Probabilities}
-\label{sec:theoretical_pmiss}
-Using the formulas derived in Section~\ref{sec:reliability_analysis}, we compute the theoretical collision probabilities ($p_{miss}$) for the parameter grid used in the evaluation.
+\section{Experimental Parameters}
+This chapter details the practical setup used to validate the theoretical models from Chapter \ref{ch:design_methodology}. Unless otherwise stated, we use a baseline desynchronization probability of $p_{desync}=0.1$; this value is held fixed for the bandwidth sweep and is varied explicitly when evaluating desynchronization sensitivity. We evaluate two data payloads: a small 96-bit message and a larger 4001-bit message. For each payload, we test verifier lengths of $n_{ver} \in \{4, 16\}$ bits, representing a small and a large verifier size.
+
+\subsection{Evaluation Scenarios (Bandwidth Baselines)}
+We use two bandwidth operating points, each tailored to the objective of the corresponding evaluation. For the baseline \gls{id} sensitivity results in Section~\ref{sec:latency_eval} (Chapter~\ref{ch:results}), we report single-bandwidth slices at $B=5$~Mbps to isolate the impact of prediction quality ($p_{desync}$) and payload size ($n_{data}$) without making the channel the sole bottleneck; this also complements the full bandwidth sweeps (10~kbps--10~Mbps). For the \gls{kid} parameter sweep and Pareto analysis in Section~\ref{sec:kid_eval}, we adopt a bandwidth-constrained setting ($B=1$~Mbps) because \gls{kid} primarily trades computation for reduced traffic (fewer fallback transmissions), and this benefit is most visible when the transmission term $n_{data}/B$ dominates.
+
+In addition, we compute the theoretical collision probabilities ($p_{miss}$) for this parameter grid using the reliability bounds derived in Section~\ref{sec:reliability_analysis}. These values are used to instantiate the hybrid latency model consistently across the two encoding mechanisms.
+
+\subsection{LiDAR-Scale Scalability Parameters}
+\label{sec:lidar_scalability_params}
+To study how the compute overhead $t_{ver}$ scales with high-dimensional sensor payloads, we perform an additional scalability experiment at $n_{ver}=16$. We measure verifier generation time for payload sizes representative of LiDAR message chunks and frame-scale payloads:
+\begin{equation}
+        n_{data} \in \{12\,\mathrm{B},\; 501\,\mathrm{B},\; 100\,\mathrm{KB},\; 1\,\mathrm{MiB},\; 5\,\mathrm{MiB}\}
+\end{equation}
+where 12~B and 501~B correspond to the 96-bit and 4001-bit baselines used elsewhere in the thesis. For \gls{sha}, the payload is represented as a byte list of length $\lceil n_{data}/8\rceil$. For \gls{rsid}, the payload is modeled as packed $\mathrm{GF}(2^{n_{ver}})$ symbols with
+\begin{equation}
+        k = \left\lceil \frac{n_{data}}{n_{ver}} \right\rceil
+\end{equation}
+so that increasing payload size increases the number of field coefficients processed by the algebraic encoder.
+
+All $t_{ver}$ measurements report mean $\pm$ 95\% CI half-width, and the timing configuration is chosen to keep the relative CI within approximately 5\% for each point. The scripts used for these measurements are located in \texttt{experiments/}:
+\begin{verbatim}
+python3 experiments/measure_tver_ci_table.py \
+    --nver-bits 16 \
+    --ndata-bits 96 4001 819200 8388608 41943040 \
+    --batches 60 --min-iters 200 \
+    --out-csv experiments/results/tver_ci_table_nver16.csv
+
+python3 experiments/plot_tver_ci_table.py \
+    --csv experiments/results/tver_ci_table_nver16.csv \
+    --out experiments/results/tver_ci_table_nver16.png
+\end{verbatim}
+
+For the corresponding end-to-end latency visualization over payload size (reported in Chapter~\ref{ch:results}), we fix $B=5$ Mbps and $p_{desync}=0.1$ and evaluate the hybrid latency model at $n_{ver}=16$ across the same payload sizes.
+
+\section{Data Packet Structure Abstraction}
+\label{sec:packet_structure}
+While the analysis in Chapter~\ref{ch:design_methodology} models transmission cost in terms of $n_{ver}$ and $n_{data}$, practical deployments encapsulate these fields in a communication frame. Figure~\ref{fig:id_frame_structure} illustrates the abstract frame layout assumed in this thesis. In normal operation, the Robot transmits only a compact verifier; when verification fails, the protocol falls back to transmitting the full state payload. The \gls{kid} protocol uses the same message structure as \gls{id}; it differs only in the receiver-side acceptance rule (set membership rather than strict equality).
+
+In the latency model, the header, timestamp, and checksum/CRC are treated as fixed overheads and are omitted for clarity. If required, these can be incorporated by adding a constant number of bits to both the verifier-only and fallback frames.
+
+\begin{figure}[!htbp]
+    \centering
+    \begin{tikzpicture}[
+        field/.style={draw, minimum height=8mm, align=center, inner sep=2pt, font=\small, line width=0.4pt},
+        rowlabel/.style={font=\bfseries\small},
+    ]
+
+        % Row 1: verifier-only
+        \node[field, fill=black!8, minimum width=0.15\textwidth] (h1) {Header};
+        \node[field, fill=blue!12, minimum width=0.40\textwidth, right=0pt of h1] (v1) {Verifier\\($n_{ver}$)};
+        \node[field, fill=black!8, minimum width=0.25\textwidth, right=0pt of v1] (t1) {Timestamp};
+        \node[field, fill=black!8, minimum width=0.15\textwidth, right=0pt of t1] (c1) {Checksum\\CRC};
+        \draw[rounded corners=1pt, line width=0.6pt] (h1.north west) rectangle (c1.south east);
+        \node[rowlabel, above=2mm of v1] {Verifier-only (ID / K-ID normal tick)};
+
+        % Row 2: fallback full payload
+        \node[field, fill=black!8, minimum width=0.15\textwidth, below=10mm of h1] (h2) {Header};
+        \node[field, fill=purple!12, minimum width=0.40\textwidth, right=0pt of h2] (p2) {State Payload\\($n_{data}$)};
+        \node[field, fill=black!8, minimum width=0.25\textwidth, right=0pt of p2] (t2) {Timestamp};
+        \node[field, fill=black!8, minimum width=0.15\textwidth, right=0pt of t2] (c2) {Checksum\\CRC};
+        \draw[rounded corners=1pt, line width=0.6pt] (h2.north west) rectangle (c2.south east);
+        \node[rowlabel, above=2mm of p2] {Fallback (full-state resynchronization)};
+    \end{tikzpicture}
+    \caption{Abstract ID message format used for modeling. The normal path transmits only a verifier, while the fallback path transmits the full state payload. Fixed overhead fields are shown for completeness but are not explicitly modeled in the latency equations.}
+    \label{fig:id_frame_structure}
+\end{figure}
+
+\section{Software Architecture}
+\label{sec:software_architecture}
+This section summarizes the software structure used to keep the simulator modular.
+
+\subsection{Modular Simulator Architecture}
+\label{sec:modular_architecture}
+Figure~\ref{fig:idsys_architecture} shows the high-level decomposition used throughout the Python experiments. The simulator is structured around three interchangeable components---\emph{Encoder}, \emph{Channel/Dynamics}, and \emph{Decoder/Decision}. This separation allows swapping SHA-256 and RS-ID encoders, switching between strict ID and tolerance-based K-ID decision rules, and evaluating both i.i.d. and time-correlated models without entangling implementation details.
+
+The interface between Encoder and Channel is a transmitted \emph{packet/frame}. In normal operation this contains only a verifier tag; on fallback it contains the full state payload. This matches the message abstraction in Figure~\ref{fig:id_frame_structure}.
+
+\begin{figure}[!t]
+    \centering
+    \begin{tikzpicture}[
+        font=\small,
+        node distance=10mm and 6mm,
+        box/.style={draw, rounded corners=2pt, align=center, inner sep=6pt, text width=0.255\textwidth},
+        impl/.style={draw, rounded corners=2pt, align=left, inner sep=5pt, fill=black!4, text width=0.255\textwidth},
+        arrow/.style={-Latex, line width=0.6pt},
+        group/.style={draw, rounded corners=2pt, inner sep=6pt}
+    ]
+        % Top-level pipeline
+        \node[box, fill=black!6] (sim) {Experiment Runner\\(sweep / Monte Carlo)};
+        \node[box, fill=blue!8, below=10mm of sim] (enc) {Encoder\\$\mathrm{Enc}(\cdot)$};
+        \node[box, fill=orange!10, right=6mm of enc] (chan) {Channel / Dynamics\\$\mathcal{C}(\cdot)$};
+        \node[box, fill=green!10, right=6mm of chan] (dec) {Decoder / Decision\\$\mathrm{Dec}(\cdot)$};
+
+        \draw[arrow] (sim) -- (enc);
+        \draw[arrow] (enc) -- (chan);
+        \draw[arrow] (chan) -- (dec);
+
+        % Implementations
+        \node[impl, below=8mm of enc] (encimpl) {\textbf{Implementations:}\\- SHA-256 (truncated)\\- RS-ID (algebraic)};
+        \node[impl, below=8mm of chan] (chanimpl) {\textbf{Models:}\\- i.i.d. desync $p_{desync}$\\- time-correlated drift (random walk)};
+        \node[impl, below=8mm of dec] (decimpl) {\textbf{Rules:}\\- ID: strict equality\\- K-ID: accept within tolerance $|e|\le K$};
+
+        \draw[arrow] (enc) -- (encimpl);
+        \draw[arrow] (chan) -- (chanimpl);
+        \draw[arrow] (dec) -- (decimpl);
+    \end{tikzpicture}
+    \caption{High-level simulator architecture used in the Python experiments. Encoder, Channel/Dynamics, and Decoder are decoupled so that coding schemes (SHA-256 vs. RS-ID), acceptance rules (ID vs. K-ID), and stochastic models (i.i.d. vs. time-correlated drift) can be varied independently.}
+    \label{fig:idsys_architecture}
+\end{figure}
 
 \section{Latency Plot Generation}
-To visualize the implications of the hybrid latency model, we generate latency curves parameterized by bandwidth using the Python scripts in the \texttt{experiments/} folder.
+To quantify the implications of the hybrid latency model, we evaluate the expected latency under systematic sweeps of the channel bandwidth $B$ and the desynchronization probability $p_{desync}$. All plots are generated for multiple payload sizes $n_{data}$, verifier lengths $n_{ver}$, and for both encoding mechanisms (SHA-256 vs. RS-ID), allowing us to compare regimes where \gls{id} provides a net latency advantage over traditional transmission.
 
-\subsection{Parameters}
-All latency plots in Chapter~\ref{sec:results_and_evaluation} use the experimental parameter grid $n_{data}\in\{96,4001\}$ bits and $n_{ver}\in\{4,16\}$ bits with $p_{desync}=0.1$. The compute overheads $t_{ver}$ are taken from empirical measurements (Table~\ref{tab:tver_results_bits}), and the collision probabilities $p_{miss}$ are computed from the theoretical bounds (Table~\ref{tab:pmiss_results_bits}).
+The latency evaluation uses the parameter grid defined in Section~4.1. The compute overheads $t_{ver}$ are taken from empirical measurements (Table~\ref{tab:tver_results}), and the collision probabilities $p_{miss}$ are computed from the theoretical bounds (Table~\ref{tab:pmiss_results}).
 
 \subsection{Logic}
 For each configuration $(n_{data}, n_{ver})$ and each system (SHA-256 vs. RS-ID), the script evaluates the expected latency
@@ -21,30 +126,30 @@ For each configuration $(n_{data}, n_{ver})$ and each system (SHA-256 vs. RS-ID)
 \end{equation}
 over a log-spaced bandwidth grid $B\in[B_{min},B_{max}]$. The traditional baseline is computed as $L_{trad}(B)=n_{data}/B$. The resulting curves are plotted on log-log axes to reveal the break-even regime where ID-based synchronization becomes beneficial.
 
-The generated figures are shown in Chapter~\ref{sec:results_and_evaluation} for $n_{data}=96$ bits (Figure~\ref{fig:latency_vs_bandwidth_96bits}) and for $n_{data}=4001$ bits (Figure~\ref{fig:latency_vs_bandwidth_4001bits}).
+The generated figures are shown in Chapter~\ref{sec:results_and_evaluation} for $n_{data}=96$ bits (Figure~\ref{fig:latency_bw_96}) and for $n_{data}=4001$ bits (Figure~\ref{fig:latency_bw_4001}).
 
-In addition, we visualize the sensitivity to desynchronization by sweeping $p_{desync}\in[0,1]$ at a fixed bandwidth and plotting $L_{ID}$ against $p_{desync}$ for the same parameter grid (Figures~\ref{fig:latency_vs_desync_96bits} and~\ref{fig:latency_vs_desync_4001bits}).
+In addition, we visualize the sensitivity to desynchronization by sweeping $p_{desync}\in[0,1]$ at a fixed bandwidth and plotting $L_{ID}$ against $p_{desync}$ for the same parameter grid (Figures~\ref{fig:latency_desync_96} and~\ref{fig:latency_desync_4001}).
 
 \subsection{SHA-256}
 The collision probability for a truncated hash function under the Random Oracle Model is independent of the data size and is given by Equation \ref{eq:sha_bound}:
 \begin{equation}
     P_{miss}^{SHA} = 2^{-n_{ver}}
 \end{equation}
-The corresponding numerical values for our selected verifier lengths are reported in Table~\ref{tab:pmiss_results_bits} in Chapter~\ref{sec:results_and_evaluation}.
+The corresponding numerical values for our selected verifier lengths are reported in Table~\ref{tab:pmiss_results} in Chapter~\ref{sec:results_and_evaluation}.
 
 \subsection{RS-ID}
 The collision probability for the algebraic construction is bounded by the Schwartz-Zippel Lemma, as shown in Equation \ref{eq:rsid_bound}. This bound depends on both data size ($n_{data}$) and verifier length ($n_{ver}$).
 \begin{equation}
     P_{miss}^{RS} \leq \frac{\lceil n_{data,bits} / n_{ver} \rceil}{2^{n_{ver}}}
 \end{equation}
-The computed values for $n_{data}\in\{96,4001\}$ bits and $n_{ver}\in\{4,16\}$ bits (with the bound capped at 1 when applicable) are reported in Table~\ref{tab:pmiss_results_bits} in Chapter~\ref{sec:results_and_evaluation}. These values highlight how the theoretical safety of RS-ID degrades with larger data sizes for a fixed verifier length, a key distinction from the cryptographic approach.
+The computed values for $n_{data}\in\{96,4001\}$ bits and $n_{ver}\in\{4,16\}$ bits (with the bound capped at 1 when applicable) are reported in Table~\ref{tab:pmiss_results} in Chapter~\ref{sec:results_and_evaluation}. These values highlight how the theoretical safety of RS-ID degrades with larger data sizes for a fixed verifier length, a key distinction from the cryptographic approach.
 
 \section{K-ID Parameter Sweep Setup}
 \label{sec:kid_setup}
 In addition to the bit-based latency evaluation, we implement the tolerance-based K-ID model introduced in Section~\ref{sec:kid_model} and perform a parameter sweep over $(K,n_{ver})$ to quantify the safety--latency trade-off of the K-ID decision rule.
 
 \subsection{Model and Metrics}
-The K-ID sweep uses a truncated SHA-256 verifier and reports four quantities: the conditional miss rate $\Pr[\mathrm{accept}\mid\mathrm{unsafe}]$ (Equation~\eqref{eq:kid_sha_bound}), the fallback rate $\Pr[\mathrm{fallback}]$ across ticks, the expected latency from the hybrid model (Equation~\eqref{eq:kid_latency}), and the speedup defined as the ratio between the traditional transmission time $(n_{data}/B)$ and the expected K-ID latency.
+The K-ID sweep uses a truncated SHA-256 verifier and reports the conditional miss rate $\Pr[\mathrm{accept}\mid\mathrm{unsafe}]$ (Equation~\eqref{eq:kid_sha_bound}), the fallback rate $\Pr[\mathrm{fallback}]$ across ticks, the expected latency from the hybrid model (Equation~\eqref{eq:kid_latency}), and the speedup defined as the ratio between the traditional transmission time $(n_{data}/B)$ and the expected K-ID latency. For the Pareto analysis in Chapter~\ref{ch:results}, we additionally use the empirical \emph{overall risk} $\Pr[\mathrm{unsafe}\cap\mathrm{accept}]$, estimated as $\texttt{miss\_count}/\texttt{ticks}$, to combine event frequency with conditional acceptance.
 
 \subsection{State Space and Quantization}
 To avoid an artificially small discrete domain (which can force the empirical miss rate to become exactly zero for moderate $n_{ver}$), the robot state is modeled as a continuous random variable and then quantized:
@@ -52,7 +157,7 @@ We sample $S_t\sim\mathcal{N}(\mu,\sigma^2)$, clip it to a physical range $[S_{m
 This yields a discrete domain size of approximately $(S_{max}-S_{min})/\Delta + 1$.
 
 \subsection{Parameter Grid}
-Unless otherwise stated, we use a 96-bit payload ($n_{data}=96$ bits) at $B=1$ Mbps with a compute overhead of $t_{ver}=2.13\,\mu s$ (SHA-256, 96 bits; Table~\ref{tab:tver_results_bits}). The robot state follows a clipped Gaussian distribution with $\mu=50$ and $\sigma=12$ on $[0,100]$ and is quantized with $\Delta=0.1$. We sweep $n_{ver}\in\{4,8,12,16\}$ and $K\in\{2,5,10,20\}$, using 200{,}000 Monte Carlo ticks per configuration with a fixed seed of 42.
+Unless otherwise stated, we use a LiDAR-scale payload ($n_{data}=4001$ bits) at $B=1$ Mbps with a compute overhead of $t_{ver}=2.13\,\mu s$ (SHA-256, 96-bit state; Table~\ref{tab:tver_results}). The robot state is clipped to $[0,100]$ and quantized with $\Delta=0.1$. We evaluate two prediction-error models: (i) a Gaussian model $S_t\sim\mathcal{N}(\mu,\sigma^2)$ with $\mu=50$ and $\sigma=12$, and (ii) a variance-matched Uniform model $S_t\sim\mathcal{U}[\mu-a,\mu+a]$ with $a=\sqrt{3}\,\sigma$ to ensure comparable variance. We sweep $n_{ver}\in\{4,8,12,16\}$ and $K\in\{2,5,10,20\}$, using 200{,}000 Monte Carlo ticks per configuration with a fixed seed of 42.
 
 \subsection{Reproducibility}
 The sweep and plot generation are implemented in the \texttt{experiments/} folder:
@@ -60,12 +165,52 @@ The simulation is implemented in \texttt{experiments/kid\_parameter\_sweep.py} (
 The following commands reproduce the CSV and plots (paths are relative to the repository root):
 \begin{verbatim}
 python3 experiments/kid_parameter_sweep.py \
-    --n-data-bits 96 --bandwidth 1e6 --ticks 200000 --seed 42 \
+    --n-data-bits 4001 --bandwidth 1e6 --ticks 200000 --seed 42 \
     --robot-mean 50 --robot-std 12 --physical-min 0 --physical-max 100 \
     --value-resolution 0.1 --t-compute-us 2.13 \
     --nver 4 8 12 16 --k 2 5 10 20 \
-    --out-csv experiments/results/kid_sweep.csv
+    --system both --error-dist normal \
+    --out-csv experiments/results/kid_sweep_gaussian_both.csv
 
 python3 experiments/plot_kid_parameter_sweep.py \
-    --csv experiments/results/kid_sweep.csv --out-dir experiments/results
+    --csv experiments/results/kid_sweep_gaussian_both.csv \
+    --out-dir experiments/results --prefix kid_sweep_gaussian_both
+
+python3 experiments/kid_parameter_sweep.py \
+    --n-data-bits 4001 --bandwidth 1e6 --ticks 200000 --seed 42 \
+    --robot-mean 50 --robot-std 12 --physical-min 0 --physical-max 100 \
+    --value-resolution 0.1 --t-compute-us 2.13 \
+    --nver 4 8 12 16 --k 2 5 10 20 \
+    --system both --error-dist uniform \
+    --out-csv experiments/results/kid_sweep_uniform_both.csv
+
+python3 experiments/plot_kid_parameter_sweep.py \
+    --csv experiments/results/kid_sweep_uniform_both.csv \
+    --out-dir experiments/results --prefix kid_sweep_uniform_both
+\end{verbatim}
+
+\section{Dynamic Drift Experiment (Random Walk \& Correction)}
+\label{sec:rw_drift_setup}
+To evaluate time-correlated error accumulation (Section~\ref{sec:random_walk_model}), we implement a dynamic simulator in which the robot state evolves as a random walk and the \gls{dt} uses a ZOH predictor. The protocol applies the K-ID tolerance gate each tick and only attempts verification when the drift exceeds $K$. A miss (collision) during verification prevents a correction and allows the drift to accumulate further, producing extended boundary breaches.
+
+\subsection{Parameterization}
+Unless otherwise stated, the reported dynamic figures use a Gaussian step model $\delta_t\sim\mathcal{N}(0,\sigma_{step}^2)$ with $\sigma_{step}=2$ and a quantization resolution of $\Delta=1$ for the acceptance-set size proxy $|\mathcal{A}_K|\approx 2\lfloor K/\Delta\rfloor+1$. We sweep $K\in\{2,5,10,20\}$ and verifier sizes $n_{ver}\in\{8,12,16\}$ over 120{,}000 ticks per run with 10 replicates (base seed 42). For the physical danger metric, we set $D=15$ to visualize sustained unsafe operation within the simulated time horizon.
+
+\subsection{Reproducibility}
+The sweep and plot generation are implemented in the \texttt{experiments/} folder. The simulation writes a CSV, and the plotting script generates the thesis-ready figures in \texttt{thesis\_report/figures/plots/}:
+\begin{verbatim}
+python3 experiments/random_walk_drift_sweep.py \
+    --ticks 120000 --replicates 10 --seed 42 \
+    --step-dist gaussian --step-param 2.0 \
+    --value-resolution 1.0 --danger-threshold 15 \
+    --k 2 5 10 20 --nver 8 12 16 \
+    --out-csv experiments/results/random_walk_drift_sweep_gaussian_step2_D15.csv
+
+python3 experiments/plot_random_walk_drift_sweep.py \
+    --csv experiments/results/random_walk_drift_sweep_gaussian_step2_D15.csv \
+    --out-dir thesis_report/figures/plots \
+    --name-suffix step2_D15 \
+    --demo --demo-ticks 2500 --demo-seed 125 \
+    --demo-step-dist gaussian --demo-step-param 2.0 \
+    --demo-k 10 --demo-danger 15 --demo-nver-a 16 --demo-nver-b 8
 \end{verbatim}

@@ -11,7 +11,7 @@ This chapter reviews the transition from classical data transmission to identifi
 
 In time-critical control loops, the utility of a \gls{dt} depends on its synchronization with the physical asset. Conventional protocols treat this as a data reconstruction problem, where the robot periodically transmits its full state vector $S_t$ (e.g., joint angles and velocities) to the \gls{dt}. While robust, this approach overlooks a key redundancy: the \gls{dt}, using its internal kinematic model, already maintains a prediction $\hat{S}_t$ of the robot's state. The communication task is therefore not to inform the \gls{dt} ``where the robot is,'' but to verify ``whether the \gls{dt}'s prediction is correct.''
 
-This shift aligns with the paradigm of \textbf{semantic communication}~\cite{strinati2024goal} in 6G networks. Unlike classical Shannon-type communication, which emphasizes accurate reconstruction, semantic communication emphasizes information that matters for the receiver's goal. In the context of \gls{urllc}, this suggests prioritizing ``actionable'' information—such as safety violations—over raw telemetry.
+This shift aligns with the paradigm of \emph{semantic communication}~\cite{strinati2024goal} in 6G networks. Unlike classical Shannon-type communication, which emphasizes accurate reconstruction, semantic communication emphasizes information that matters for the receiver's goal. In the context of \gls{urllc}, this suggests prioritizing ``actionable'' information—such as safety violations—over raw telemetry.
 
 Accordingly, the coding objective shifts from Shannon's transmission capacity to the identification capacity defined by Ahlswede and Dueck~\cite{ahlswede1989}. In transmission, each possible state must map to a disjoint decoding set, limiting the number of distinguishable states to $2^{nR}$ for blocklength $n$. In contrast, identification permits overlaps between decoding sets, as long as pairwise intersections are statistically negligible. This relaxation enables a doubly exponential growth in identifiable states ($2^{2^{nR}}$), meaning that short verifiers can discriminate among an extremely large state space while allowing a vanishingly small error probability.
 
@@ -29,7 +29,7 @@ The standard baseline in industrial automation is the periodic transmission of t
 \subsection{Delta Encoding and the Drift Problem}
 To address this redundancy, Delta Encoding~\cite{mogul1997potential} (or differential transmission) is frequently employed. This method transmits only the difference vector $\Delta_t = S_t - S_{t-1}$. Since $\Delta_t$ typically has a smaller dynamic range than the absolute state $S_t$, it can be quantized with fewer bits, offering significant compression ratios.
 
-However, Delta Encoding introduces a key vulnerability: \textbf{statefulness}. The reconstruction of the current state at the receiver, denoted as $S'_t$, depends recursively on the history of received updates: $S'_t = S'_{t-1} + \Delta_t$. This recursive dependency creates a clear failure mode in unreliable transport protocols like \gls{udp}. A single lost packet $\Delta_k$ causes a persistent offset between the physical robot and the \gls{dt}, a phenomenon known as ``state drift.''~\cite{ishibashi2007lag} While reliable protocols like \gls{tcp} can prevent packet loss, retransmissions introduce non-deterministic latency jitter, which can violate the timing deadlines of real-time control loops. Therefore, Delta Encoding poses a high risk for \gls{urllc} applications.
+However, Delta Encoding introduces a key vulnerability: \emph{statefulness}. The reconstruction of the current state at the receiver, denoted as $S'_t$, depends recursively on the history of received updates: $S'_t = S'_{t-1} + \Delta_t$. This recursive dependency creates a clear failure mode in unreliable transport protocols like \gls{udp}. A single lost packet $\Delta_k$ causes a persistent offset between the physical robot and the \gls{dt}, a phenomenon known as ``state drift.''~\cite{ishibashi2007lag} While reliable protocols like \gls{tcp} can prevent packet loss, retransmissions introduce non-deterministic latency jitter, which can violate the timing deadlines of real-time control loops. Therefore, Delta Encoding poses a high risk for \gls{urllc} applications.
 
 \subsection{Event-Triggered Control (ETC)}
 Another prominent alternative is Event-Triggered Control (\gls{etc}). Unlike Time-Triggered (periodic) systems, \gls{etc} only transmits data when the deviation between the current state and the last transmitted state exceeds a threshold $\delta$: $\|S_t - S_{last\_sent}\| > \delta$~\cite{tabuada2007event}. This approach effectively silences the network during periods of inactivity.
@@ -53,7 +53,7 @@ To realize the theoretical capacity of identification in edge computing, the enc
 \subsection{Cryptographic Construction: The SHA-256 Architecture}
 \label{subsec:sha256_structure}
 
-To understand the source of the high entropy in the generated verifiers, it is necessary to examine the internal structure of the SHA-256 algorithm. SHA-256 belongs to the SHA-2 family and is built upon the Merkle-Damgård construction, which iteratively processes the input state $S$ using a dedicated compression function. The process consists of three mathematically distinct stages: preprocessing, message expansion, and the state update loop.
+To understand the source of the high entropy in the generated verifiers, it is necessary to examine the internal structure of the SHA-256 algorithm~\cite{nist2015secure}. SHA-256 belongs to the SHA-2 family and is built upon the Merkle-Damgård construction, which iteratively processes the input state $S$ using a dedicated compression function. The process consists of three mathematically distinct stages: preprocessing, message expansion, and the state update loop.
 
 \subsubsection{Preprocessing and Padding}
 The input message $M$ (comprising the state $S$ concatenated with the seed $r$) is first padded to ensure its length is a multiple of 512 bits. The padding scheme appends a single '1' bit, followed by $k$ zero bits, and finally a 64-bit integer representing the original message length. This padded message is parsed into $N$ blocks of 512 bits, denoted as $M^{(1)}, M^{(2)}, \dots, M^{(N)}$.
@@ -94,14 +94,14 @@ This rigorous mixing guarantees that after 64 rounds, every bit of the final has
 
 \subsection{Algebraic Construction: The Geometry of RS-ID}
 \label{subsec:rsid_geometry}
-In contrast to the bitwise diffusion of SHA-256, \gls{rsid} relies on the geometric properties of polynomials over finite fields. 
+In contrast to the bitwise diffusion of SHA-256, \gls{rsid} relies on the geometric properties of polynomials over finite fields\cite{schwartz1980fast}. 
 
 \subsubsection{Data as a Polynomial Curve}
 Let the state vector $S$ be decomposed into $k$ segments $\{s_0, s_1, \dots, s_{k-1}\}$, where each segment is an element of the Galois Field $\mathbb{F}_q$. We interpret these segments not as raw data, but as coefficients of a unique polynomial curve $P_S(x)$ of degree $k-1$:
 \begin{equation}
     P_S(x) = s_0 + s_1 x + s_2 x^2 + \dots + s_{k-1} x^{k-1} = \sum_{i=0}^{k-1} s_i x^i
 \end{equation}
-The generation of a verifier $v$ using a random seed $r$ is geometrically equivalent to \textbf{sampling this curve} at the coordinate $x=r$:
+The generation of a verifier $v$ using a random seed $r$ is geometrically equivalent to \emph{sampling this curve} at the coordinate $x=r$:
 \begin{equation}
     v = P_S(r) \pmod q
 \end{equation}
@@ -112,7 +112,7 @@ A collision (Type II error) occurs when the true state $S$ and the predicted sta
 \begin{equation}
     P_S(r) = P_{\hat{S}}(r) \implies P_S(r) - P_{\hat{S}}(r) = 0
 \end{equation}
-Let $\Delta(x) = P_S(x) - P_{\hat{S}}(x)$ be the difference polynomial. Since $S \neq \hat{S}$, $\Delta(x)$ is a non-zero polynomial with degree at most $k-1$. By the \textbf{Fundamental Theorem of Algebra}, a non-zero polynomial of degree $d$ can have at most $d$ roots. 
+Let $\Delta(x) = P_S(x) - P_{\hat{S}}(x)$ be the difference polynomial. Since $S \neq \hat{S}$, $\Delta(x)$ is a non-zero polynomial with degree at most $k-1$. By the \emph{Fundamental Theorem of Algebra}, a non-zero polynomial of degree $d$ can have at most $d$ roots. 
 
 This geometric constraint provides the rigorous upper bound for the collision probability. The number of "bad seeds" $r$ that cause a collision is limited to the number of intersection points between the two curves $P_S(x)$ and $P_{\hat{S}}(x)$, which is at most $k-1$. Thus, for a field of size $q$, the probability is:
 \begin{equation}
@@ -123,7 +123,7 @@ This derivation visualizes the identification process as "checking for intersect
 \subsection{Structural Blindness and Randomization}
 A critical limitation of deterministic compression is ``structural blindness.'' Consider a simplified case where the encoder uses a modulo operation. If the error $e = S - \hat{S}$ happens to be a multiple of the modulus, the generated verifiers will be identical ($v = \hat{v}$) regardless of the magnitude of the error. Even if the robot's state $S$ changes continuously, this error pattern might persist, leading to a persistent Type II (miss) error.
 
-To eliminate structural blindness, identification theory mandates the use of \textbf{common randomness}---a shared seed $r$ that changes with each transmission. In \gls{rsid}, changing $r$ corresponds to sampling the polynomial at a different $x$-coordinate. In \gls{sha}, appending a time-varying salt ($S || r$) changes the avalanche dynamics. By varying $r$, the mapping changes at every time step; although a collision may occur at a specific seed $r_1$, the probability that the same error causes a collision at a new seed $r_2$ is independent. This converts potential ``permanent failures'' into ``transient probabilistic events.''
+To eliminate structural blindness, identification theory mandates the use of \emph{common randomness}---a shared seed $r$ that changes with each transmission. In \gls{rsid}, changing $r$ corresponds to sampling the polynomial at a different $x$-coordinate. In \gls{sha}, appending a time-varying salt ($S || r$) changes the avalanche dynamics. By varying $r$, the mapping changes at every time step; although a collision may occur at a specific seed $r_1$, the probability that the same error causes a collision at a new seed $r_2$ is independent. This converts potential ``permanent failures'' into ``transient probabilistic events.''
 
 % ==================================================================================
 % Section 2.4: Common randomness
@@ -171,21 +171,21 @@ For real-time control loops operating at short block lengths, the theoretical ad
 Beyond communication efficiency, the deployment of \gls{kid} changes the control loop structure. From a control-theoretic perspective, \gls{kid} yields a \gls{ncs} operating under a semantic sampling policy. This section analyzes the implications for stability and execution semantics, and maps \gls{kid} parameters to established control concepts.
 
 \subsection{K-ID as Deadband Control}
-The tolerance mechanism in \gls{kid}, defined by the acceptance set $\mathcal{B}$, is mathematically equivalent to \textbf{Deadband Control} (or Dead-Zone Control) in non-linear systems theory. In classical mechanics, deadbands are often viewed as parasitic nonlinearities (e.g., gear backlash) that degrade performance. However, in resource-constrained \gls{ncs}, artificially introduced deadbands are a recognized strategy for reducing actuator wear and communication load~\cite{astrom2002comparison}.
+The tolerance mechanism in \gls{kid}, defined by the acceptance set $\mathcal{B}$, is mathematically equivalent to \emph{Deadband Control} (or Dead-Zone Control) in non-linear systems theory. In classical mechanics, deadbands are often viewed as parasitic nonlinearities (e.g., gear backlash) that degrade performance. However, in resource-constrained \gls{ncs}, artificially introduced deadbands are a recognized strategy for reducing actuator wear and communication load~\cite{astrom2002comparison}.
 
-By enforcing a ``silence'' policy when the synchronization error $e_t = S_t - \hat{S}_t$ satisfies $|e_t| \le K$, \gls{kid} implements \textbf{Lebesgue Sampling} (sampling based on value domains), as opposed to the traditional Riemann Sampling (sampling based on time domains). This semantic filtering prevents the control loop from reacting to high-frequency, low-amplitude noise (chattering), thereby reducing mechanical stress on physical actuators while preserving bandwidth for significant trajectory corrections.
+By enforcing a ``silence'' policy when the synchronization error $e_t = S_t - \hat{S}_t$ satisfies $|e_t| \le K$, \gls{kid} implements \emph{Lebesgue Sampling} (sampling based on value domains), as opposed to the traditional Riemann Sampling (sampling based on time domains). This semantic filtering prevents the control loop from reacting to high-frequency, low-amplitude noise (chattering), thereby reducing mechanical stress on physical actuators while preserving bandwidth for significant trajectory corrections.
 
 \subsection{Prevention of Zeno Behavior}
-A pervasive challenge in standard Event-Triggered Control (\gls{etc}) is the risk of \textbf{Zeno behavior}---a phenomenon where the inter-event time converges to zero, causing the system to trigger an infinite number of updates in a finite time interval~\cite{heemels2012introduction}. This can occur when the state trajectory ``slides'' along the triggering threshold, potentially leading to computational livelock or network storms.
+A pervasive challenge in standard Event-Triggered Control (\gls{etc}) is the risk of \emph{Zeno behavior}---a phenomenon where the inter-event time converges to zero, causing the system to trigger an infinite number of updates in a finite time interval~\cite{heemels2012introduction}. This can occur when the state trajectory ``slides'' along the triggering threshold, potentially leading to computational livelock or network storms.
 
-\gls{kid} inherently circumvents this instability through its hybrid architecture. Although the \emph{decision} to update is event-driven (based on the semantic check $v \in \mathcal{V}_K$), the \emph{verification opportunity} occurs at discrete, time-triggered intervals (ticks). This imposes a strict lower bound on the inter-transmission time, denoted as $T_{min} \ge T_{tick}$. By structural design, \gls{kid} guarantees \textbf{Zeno-freeness}, ensuring that the network load remains deterministically bounded even in worst-case divergence scenarios.
+\gls{kid} inherently circumvents this instability through its hybrid architecture. Although the \emph{decision} to update is event-driven (based on the semantic check $v \in \mathcal{V}_K$), the \emph{verification opportunity} occurs at discrete, time-triggered intervals (ticks). This imposes a strict lower bound on the inter-transmission time, denoted as $T_{min} \ge T_{tick}$. By structural design, \gls{kid} guarantees \emph{Zeno-freeness}, ensuring that the network load remains deterministically bounded even in worst-case divergence scenarios.
 
 \subsection{Bounded-Input Bounded-Output (BIBO) Stability}
 The introduction of the semantic tolerance $K$ raises the question of closed-loop stability. Under \gls{kid}, the \gls{dt} (controller) operates on an estimated state $\hat{S}_t$ that deviates from the true plant state $S_t$ by an error term $\delta_t$. Assuming the absence of collision-induced miss errors (which are probabilistically negligible as shown in Section~\ref{sec:encoding_mechanisms}), the synchronization error is strictly bounded:
 \begin{equation}
     ||\delta_t|| = ||S_t - \hat{S}_t|| \le K
 \end{equation}
-From a stability analysis perspective, this bounded error acts as a bounded disturbance input to the controller. According to the principle of \textbf{\gls{bibo} stability}~\cite{hespanha2007survey}, as long as the underlying control law can reject disturbances of magnitude $K$, the closed-loop system remains stable. This implies that the design of $K$ is not only a traffic parameter but also a stability constraint: $K$ must remain within the controller's stability margin (or region of attraction).
+From a stability analysis perspective, this bounded error acts as a bounded disturbance input to the controller. According to the principle of \gls{bibo} stability~\cite{hespanha2007survey}, as long as the underlying control law can reject disturbances of magnitude $K$, the closed-loop system remains stable. This implies that the design of $K$ is not only a traffic parameter but also a stability constraint: $K$ must remain within the controller's stability margin (or region of attraction).
 
 % ==================================================================================
 % Section 2.6: K-ID
@@ -208,7 +208,7 @@ By shifting the verification paradigm from data exactness to semantic compliance
 \subsection{Discussion: Trading Freshness for Value}
 \label{subsec:aoi_voi_tradeoff}
 
-The scenarios described above illustrate a deviation from traditional network optimization. Conventional real-time protocols often aim to minimize the \textbf{\gls{aoi}}~\cite{kaul2012real}, keeping the \gls{dt}'s estimate as fresh as possible regardless of content. Under an \gls{aoi}-minimization strategy, the robot would transmit its velocity continuously even when cruising steadily within the safe corridor, purely to prevent the timestamp from ``aging.''
+The scenarios described above illustrate a deviation from traditional network optimization. Conventional real-time protocols often aim to minimize the \gls{aoi}~\cite{kaul2012real}, keeping the \gls{dt}'s estimate as fresh as possible regardless of content. Under an \gls{aoi}-minimization strategy, the robot would transmit its velocity continuously even when cruising steadily within the safe corridor, purely to prevent the timestamp from ``aging.''
 
-\gls{kid} challenges this paradigm by introducing a semantic filter that prioritizes the \textbf{\gls{voi}} over simple freshness. As demonstrated in the autonomous driving case, a ``stale'' position estimate (high \gls{aoi}) that remains within the safety tolerance $\mathcal{B}$ retains its utility for the control loop. By allowing \gls{aoi} to increase during semantically safe intervals, \gls{kid} trades unnecessary freshness for bandwidth efficiency. This is consistent with goal-oriented communication~\cite{strinati2024goal}, where the objective shifts from minimizing average latency to minimizing the latency of \emph{meaningful} (unsafe) updates.
+\gls{kid} challenges this paradigm by introducing a semantic filter that prioritizes the \gls{voi} over simple freshness. As demonstrated in the autonomous driving case, a ``stale'' position estimate (high \gls{aoi}) that remains within the safety tolerance $\mathcal{B}$ retains its utility for the control loop. By allowing \gls{aoi} to increase during semantically safe intervals, \gls{kid} trades unnecessary freshness for bandwidth efficiency. This is consistent with goal-oriented communication~\cite{strinati2024goal}, where the objective shifts from minimizing average latency to minimizing the latency of \emph{meaningful} (unsafe) updates.
 

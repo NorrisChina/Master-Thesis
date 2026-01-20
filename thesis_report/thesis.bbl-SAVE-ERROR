@@ -19,6 +19,436 @@
 
 \refsection{0}
   \datalist[entry]{nty/global//global/global}
+    \entry{ahlswede1998common}{article}{}
+      \name{author}{2}{}{%
+        {{hash=3f9d8aa4b63dfc7900497c47637e509b}{%
+           family={Ahlswede},
+           familyi={A\bibinitperiod},
+           given={Rudolf},
+           giveni={R\bibinitperiod}}}%
+        {{hash=60fe2f84ffa0237d0f8d35383a9c5b7a}{%
+           family={Csiszár},
+           familyi={C\bibinitperiod},
+           given={Imre},
+           giveni={I\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{049a0fb9d573ecb98ff165a830057612}
+      \strng{fullhash}{b6dae4659a644e768bc6fe2fe48bdef5}
+      \strng{bibnamehash}{b6dae4659a644e768bc6fe2fe48bdef5}
+      \strng{authorbibnamehash}{b6dae4659a644e768bc6fe2fe48bdef5}
+      \strng{authornamehash}{049a0fb9d573ecb98ff165a830057612}
+      \strng{authorfullhash}{b6dae4659a644e768bc6fe2fe48bdef5}
+      \field{extraname}{1}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Information Theory}
+      \field{number}{1}
+      \field{title}{Common randomness in information theory and cryptography. Part II: CR capacity}
+      \field{volume}{44}
+      \field{year}{1998}
+      \field{pages}{225\bibrangedash 240}
+      \range{pages}{16}
+    \endentry
+    \entry{ahlswede1989}{inproceedings}{}
+      \name{author}{2}{}{%
+        {{hash=3f9d8aa4b63dfc7900497c47637e509b}{%
+           family={Ahlswede},
+           familyi={A\bibinitperiod},
+           given={Rudolf},
+           giveni={R\bibinitperiod}}}%
+        {{hash=533f5bc7044c4f67810539ca0e50a588}{%
+           family={Dueck},
+           familyi={D\bibinitperiod},
+           given={Gunter},
+           giveni={G\bibinitperiod}}}%
+      }
+      \strng{namehash}{049a0fb9d573ecb98ff165a830057612}
+      \strng{fullhash}{f49e672b2863674a96b8d72832e56a49}
+      \strng{bibnamehash}{f49e672b2863674a96b8d72832e56a49}
+      \strng{authorbibnamehash}{f49e672b2863674a96b8d72832e56a49}
+      \strng{authornamehash}{049a0fb9d573ecb98ff165a830057612}
+      \strng{authorfullhash}{f49e672b2863674a96b8d72832e56a49}
+      \field{extraname}{2}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{1989 IEEE International Symposium on Information Theory}
+      \field{title}{Identification via Channels}
+      \field{year}{1989}
+      \field{pages}{15\bibrangedash 19}
+      \range{pages}{5}
+      \verb{doi}
+      \verb 10.1109/ISIT.1989.118235
+      \endverb
+      \keyw{communication systems;mathematical model;probability theory;identification via channels;disjoint decoding set;overlapping decoding sets;statistically small intersection}
+    \endentry
+    \entry{astrom2002comparison}{article}{}
+      \name{author}{2}{}{%
+        {{hash=6e88afac922e3254f771b25aa404d121}{%
+           family={Aström},
+           familyi={A\bibinitperiod},
+           given={Karl\bibnamedelima J},
+           giveni={K\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=f124210a5115e07dccecae84c8eb73f8}{%
+           family={Bernhardsson},
+           familyi={B\bibinitperiod},
+           given={Bo\bibnamedelima M},
+           giveni={B\bibinitperiod\bibinitdelim M\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{cf50e1492eb3d073e268e52970771680}
+      \strng{fullhash}{725b6b542aaa6a8b181beaa10a9b6814}
+      \strng{bibnamehash}{725b6b542aaa6a8b181beaa10a9b6814}
+      \strng{authorbibnamehash}{725b6b542aaa6a8b181beaa10a9b6814}
+      \strng{authornamehash}{cf50e1492eb3d073e268e52970771680}
+      \strng{authorfullhash}{725b6b542aaa6a8b181beaa10a9b6814}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Proceedings of the 41st IEEE Conference on Decision and Control}
+      \field{title}{Comparison of Riemann and Lebesgue sampling for first order stochastic systems}
+      \field{volume}{2}
+      \field{year}{2002}
+      \field{pages}{2011\bibrangedash 2016}
+      \range{pages}{6}
+    \endentry
+    \entry{nist80090a}{report}{}
+      \name{author}{2}{}{%
+        {{hash=fe89f812e7e0e1b0369322681b2dcd7c}{%
+           family={Barker},
+           familyi={B\bibinitperiod},
+           given={Elaine},
+           giveni={E\bibinitperiod}}}%
+        {{hash=47fa73357b828aa53859b00946c179b1}{%
+           family={Kelsey},
+           familyi={K\bibinitperiod},
+           given={John},
+           giveni={J\bibinitperiod}}}%
+      }
+      \list{institution}{2}{%
+        {National Institute of Standards}%
+        {Technology}%
+      }
+      \strng{namehash}{2b20087e82a1ea7bb76c5c321cccd318}
+      \strng{fullhash}{d393910e8562cc62acf43831ebc8bee7}
+      \strng{bibnamehash}{d393910e8562cc62acf43831ebc8bee7}
+      \strng{authorbibnamehash}{d393910e8562cc62acf43831ebc8bee7}
+      \strng{authornamehash}{2b20087e82a1ea7bb76c5c321cccd318}
+      \strng{authorfullhash}{d393910e8562cc62acf43831ebc8bee7}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{number}{NIST Special Publication 800-90A Revision 1}
+      \field{title}{Recommendation for Random Number Generation Using Deterministic Random Bit Generators}
+      \field{type}{techreport}
+      \field{year}{2015}
+      \verb{doi}
+      \verb 10.6028/NIST.SP.800-90Ar1
+      \endverb
+    \endentry
+    \entry{bellare1993random}{inproceedings}{}
+      \name{author}{2}{}{%
+        {{hash=06e2bb2f83d8b669b46db64431509301}{%
+           family={Bellare},
+           familyi={B\bibinitperiod},
+           given={Mihir},
+           giveni={M\bibinitperiod}}}%
+        {{hash=2198941c13b8201b0e0d2127034bb263}{%
+           family={Rogaway},
+           familyi={R\bibinitperiod},
+           given={Phillip},
+           giveni={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{a1cb1555602d265f1e979e8d077267cd}
+      \strng{fullhash}{817c7655f7da4865d0cb63932b8d4676}
+      \strng{bibnamehash}{817c7655f7da4865d0cb63932b8d4676}
+      \strng{authorbibnamehash}{817c7655f7da4865d0cb63932b8d4676}
+      \strng{authornamehash}{a1cb1555602d265f1e979e8d077267cd}
+      \strng{authorfullhash}{817c7655f7da4865d0cb63932b8d4676}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the 1st ACM Conference on Computer and Communications Security}
+      \field{title}{Random oracles are practical: A paradigm for designing efficient protocols}
+      \field{year}{1993}
+      \field{pages}{62\bibrangedash 73}
+      \range{pages}{12}
+    \endentry
+    \entry{doi:https://doi.org/10.1002/9781119765554.ch16}{inbook}{}
+      \name{author}{6}{}{%
+        {{hash=cc72f8400c5004a0d5696e079cfc3fef}{%
+           family={Cabrera},
+           familyi={C\bibinitperiod},
+           given={Juan\bibnamedelima A.},
+           giveni={J\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+        {{hash=e09982fdea2bb97a09937538f9bd53b7}{%
+           family={Boche},
+           familyi={B\bibinitperiod},
+           given={Holger},
+           giveni={H\bibinitperiod}}}%
+        {{hash=90f0bed7fe3c0548112af55f4f53e482}{%
+           family={Deppe},
+           familyi={D\bibinitperiod},
+           given={Christian},
+           giveni={C\bibinitperiod}}}%
+        {{hash=e89510e37facbe23004db27a395570b8}{%
+           family={Schaefer},
+           familyi={S\bibinitperiod},
+           given={Rafael\bibnamedelima F.},
+           giveni={R\bibinitperiod\bibinitdelim F\bibinitperiod}}}%
+        {{hash=f242ae5d46d7d72e27f411d9392fa10f}{%
+           family={Scheunert},
+           familyi={S\bibinitperiod},
+           given={Christian},
+           giveni={C\bibinitperiod}}}%
+        {{hash=d3e7f971501ea31ce2bc16e2c490eb05}{%
+           family={Fitzek},
+           familyi={F\bibinitperiod},
+           given={Frank\bibnamedelimb H.\bibnamedelimi P.},
+           giveni={F\bibinitperiod\bibinitdelim H\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {John Wiley \& Sons, Ltd}%
+      }
+      \strng{namehash}{d871a8f77fa0d1e4f239e1b94f6efb02}
+      \strng{fullhash}{27733a7e60cb4b52d4e67c5411004bcf}
+      \strng{bibnamehash}{d871a8f77fa0d1e4f239e1b94f6efb02}
+      \strng{authorbibnamehash}{d871a8f77fa0d1e4f239e1b94f6efb02}
+      \strng{authornamehash}{d871a8f77fa0d1e4f239e1b94f6efb02}
+      \strng{authorfullhash}{27733a7e60cb4b52d4e67c5411004bcf}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Summary Since the breakthrough of Shannon's seminal paper, researchers and engineers have worked on codes and techniques that approach the fundamental limits of message transmission. Given the capacity C of a channel and the block length n of the codewords, the maximum number of possible messages that can be transmitted is 2 nC . In this work, we advocate a paradigm change towards Post-Shannon communication that allows the encoding of up to 2 2 nC messages: a double exponential behavior! This paradigm shift is the study of the transmission of the Gestalt information instead of message-only transmission and involves a shift from the question of what message the sender has transmitted to whether it has transmitted at all, and with the purpose of achieving which goal. Entire careers were built designing methods and codes on top of previous works, bringing only marginal gains in approaching the fundamental limit of Shannon's message transmission. This paradigm change can bring not only marginal but also exponential gains in the efficiency of communication. Within Post-Shannon techniques, we will explore identification codes, the exploitation of resources that are considered useless in the current paradigm such as noiseless feedback common randomness, and the exploitation of multi-channel descriptor information.}
+      \field{booktitle}{Shaping Future 6G Networks}
+      \field{chapter}{16}
+      \field{isbn}{9781119765554}
+      \field{title}{6G and the Post-Shannon Theory}
+      \field{year}{2021}
+      \field{pages}{271\bibrangedash 294}
+      \range{pages}{24}
+      \verb{doi}
+      \verb https://doi.org/10.1002/9781119765554.ch16
+      \endverb
+      \verb{eprint}
+      \verb https://onlinelibrary.wiley.com/doi/pdf/10.1002/9781119765554.ch16
+      \endverb
+      \verb{urlraw}
+      \verb https://onlinelibrary.wiley.com/doi/abs/10.1002/9781119765554.ch16
+      \endverb
+      \verb{url}
+      \verb https://onlinelibrary.wiley.com/doi/abs/10.1002/9781119765554.ch16
+      \endverb
+      \keyw{6G Communications System,Post Shannon Communication,Physical Layer Security,Resilience by Design,Fundamental Limits for Computer-Aided Design Approaches}
+    \endentry
+    \entry{heemels2012introduction}{inproceedings}{}
+      \name{author}{3}{}{%
+        {{hash=3bb4b9b6bb5e640bee79206d3a0a9b3c}{%
+           family={Heemels},
+           familyi={H\bibinitperiod},
+           given={WPMH},
+           giveni={W\bibinitperiod}}}%
+        {{hash=ca50080f9b7c6c18b9184edcde522d37}{%
+           family={Johansson},
+           familyi={J\bibinitperiod},
+           given={Karl\bibnamedelima H},
+           giveni={K\bibinitperiod\bibinitdelim H\bibinitperiod}}}%
+        {{hash=fa077b33d45928296923ab6a3c97f740}{%
+           family={Tabuada},
+           familyi={T\bibinitperiod},
+           given={Paulo},
+           giveni={P\bibinitperiod}}}%
+      }
+      \list{organization}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{65e3623971f0a8bd0b5258804b29f7ec}
+      \strng{fullhash}{ced624e47590e6c6ab805a9cbaf01238}
+      \strng{bibnamehash}{ced624e47590e6c6ab805a9cbaf01238}
+      \strng{authorbibnamehash}{ced624e47590e6c6ab805a9cbaf01238}
+      \strng{authornamehash}{65e3623971f0a8bd0b5258804b29f7ec}
+      \strng{authorfullhash}{ced624e47590e6c6ab805a9cbaf01238}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{51st IEEE Conference on Decision and Control (CDC)}
+      \field{title}{An introduction to event-triggered and self-triggered control}
+      \field{year}{2012}
+      \field{pages}{3270\bibrangedash 3285}
+      \range{pages}{16}
+    \endentry
+    \entry{heinzelman2000energy}{inproceedings}{}
+      \name{author}{3}{}{%
+        {{hash=e65c320aa860c99be191939441724a67}{%
+           family={Heinzelman},
+           familyi={H\bibinitperiod},
+           given={Wendi\bibnamedelima Rabiner},
+           giveni={W\bibinitperiod\bibinitdelim R\bibinitperiod}}}%
+        {{hash=dfed61f655576285bb16a8a07b109f1f}{%
+           family={Chandrakasan},
+           familyi={C\bibinitperiod},
+           given={Anantha},
+           giveni={A\bibinitperiod}}}%
+        {{hash=ec394c5150bcaf5dac455aa9e3221f4e}{%
+           family={Balakrishnan},
+           familyi={B\bibinitperiod},
+           given={Hari},
+           giveni={H\bibinitperiod}}}%
+      }
+      \list{organization}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{f9ab67d1ae01363fba2caeba91d1373a}
+      \strng{fullhash}{91cde368c67b40a4ee6a6ad97776a311}
+      \strng{bibnamehash}{91cde368c67b40a4ee6a6ad97776a311}
+      \strng{authorbibnamehash}{91cde368c67b40a4ee6a6ad97776a311}
+      \strng{authornamehash}{f9ab67d1ae01363fba2caeba91d1373a}
+      \strng{authorfullhash}{91cde368c67b40a4ee6a6ad97776a311}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the 33rd Annual Hawaii International Conference on System Sciences}
+      \field{title}{Energy-efficient communication protocol for wireless microsensor networks}
+      \field{year}{2000}
+      \field{pages}{10\bibrangedash pp}
+      \range{pages}{-1}
+    \endentry
+    \entry{hespanha2007survey}{inproceedings}{}
+      \name{author}{3}{}{%
+        {{hash=be2b9a60fbf2a027556152ae42124eb8}{%
+           family={Hespanha},
+           familyi={H\bibinitperiod},
+           given={Joao\bibnamedelima P},
+           giveni={J\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+        {{hash=0492b4fbe8af9853e719ce1e2bb8dab6}{%
+           family={Naghshtabrizi},
+           familyi={N\bibinitperiod},
+           given={Payam},
+           giveni={P\bibinitperiod}}}%
+        {{hash=3ff847e5e819be21f42f65a9917c7b9b}{%
+           family={Xu},
+           familyi={X\bibinitperiod},
+           given={Yonggang},
+           giveni={Y\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{c4640fab1a031a58241578b10faba5c3}
+      \strng{fullhash}{5b6276db7e96ef3a18c42caa7096b0e9}
+      \strng{bibnamehash}{5b6276db7e96ef3a18c42caa7096b0e9}
+      \strng{authorbibnamehash}{5b6276db7e96ef3a18c42caa7096b0e9}
+      \strng{authornamehash}{c4640fab1a031a58241578b10faba5c3}
+      \strng{authorfullhash}{5b6276db7e96ef3a18c42caa7096b0e9}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the IEEE}
+      \field{number}{1}
+      \field{title}{A survey of recent results in networked control systems}
+      \field{volume}{95}
+      \field{year}{2007}
+      \field{pages}{138\bibrangedash 162}
+      \range{pages}{25}
+    \endentry
+    \entry{ieee1588}{manual}{}
+      \list{organization}{1}{%
+        {IEEE}%
+      }
+      \field{sortinit}{I}
+      \field{sortinithash}{8d291c51ee89b6cd86bf5379f0b151d8}
+      \field{labeltitlesource}{title}
+      \field{number}{1588-2019}
+      \field{title}{IEEE Standard for a Precision Clock Synchronization Protocol for Networked Measurement and Control Systems}
+      \field{year}{2019}
+      \verb{doi}
+      \verb 10.1109/IEEESTD.2020.9120376
+      \endverb
+    \endentry
+    \entry{ishibashi2007lag}{inproceedings}{}
+      \name{author}{2}{}{%
+        {{hash=49aba520ec49004eddb45e4464989b17}{%
+           family={Ishibashi},
+           familyi={I\bibinitperiod},
+           given={Yutaka},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=e7de9bb3565b3edb39d4afac9ac2696e}{%
+           family={Tasaka},
+           familyi={T\bibinitperiod},
+           given={Shuji},
+           giveni={S\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {ACM}%
+      }
+      \strng{namehash}{85a515596f3879128392b4ea2c6a2e1f}
+      \strng{fullhash}{7ee6f3e5d6575df6a89b7e86564ba120}
+      \strng{bibnamehash}{7ee6f3e5d6575df6a89b7e86564ba120}
+      \strng{authorbibnamehash}{7ee6f3e5d6575df6a89b7e86564ba120}
+      \strng{authornamehash}{85a515596f3879128392b4ea2c6a2e1f}
+      \strng{authorfullhash}{7ee6f3e5d6575df6a89b7e86564ba120}
+      \field{sortinit}{I}
+      \field{sortinithash}{8d291c51ee89b6cd86bf5379f0b151d8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the 6th ACM SIGCOMM workshop on Network and system support for games}
+      \field{title}{Lag-compensation in delta-encoding based networked rigid body simulation}
+      \field{year}{2007}
+      \field{pages}{123\bibrangedash 128}
+      \range{pages}{6}
+    \endentry
+    \entry{kaul2012real}{inproceedings}{}
+      \name{author}{3}{}{%
+        {{hash=5daaee9bb5f75dc25f1dc6de593649e2}{%
+           family={Kaul},
+           familyi={K\bibinitperiod},
+           given={Sanjit},
+           giveni={S\bibinitperiod}}}%
+        {{hash=3b47c8d42cf5261502a401b55e305e4b}{%
+           family={Yates},
+           familyi={Y\bibinitperiod},
+           given={Roy},
+           giveni={R\bibinitperiod}}}%
+        {{hash=f962d868f78c85734babcc1c1b9e137c}{%
+           family={Gruteser},
+           familyi={G\bibinitperiod},
+           given={Marco},
+           giveni={M\bibinitperiod}}}%
+      }
+      \list{organization}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{3cf0b42b7696f0551b81070e68eb3609}
+      \strng{fullhash}{5638347d63a8a572bc4721dde7749e99}
+      \strng{bibnamehash}{5638347d63a8a572bc4721dde7749e99}
+      \strng{authorbibnamehash}{5638347d63a8a572bc4721dde7749e99}
+      \strng{authornamehash}{3cf0b42b7696f0551b81070e68eb3609}
+      \strng{authorfullhash}{5638347d63a8a572bc4721dde7749e99}
+      \field{sortinit}{K}
+      \field{sortinithash}{c02bf6bff1c488450c352b40f5d853ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{2012 Proceedings IEEE INFOCOM}
+      \field{title}{Real-time status: How often should one update?}
+      \field{year}{2012}
+      \field{pages}{2731\bibrangedash 2735}
+      \range{pages}{5}
+    \endentry
     \entry{9789759}{inproceedings}{}
       \name{author}{4}{}{%
         {{hash=8cd38500e9b7f5462ff5cc7ac49c4cd8}{%
@@ -61,6 +491,131 @@
       \verb 10.1109/NOMS54207.2022.9789759
       \endverb
       \keyw{Wireless communication;Hash functions;Codes;Protocols;Error probability;Telecommunication traffic;Maintenance engineering;digital twin;identification via channels;post-Shannon;goal-oriented communication}
+    \endentry
+    \entry{li2019physical}{article}{}
+      \name{author}{6}{}{%
+        {{hash=f50b1f1436e88e291380b13bdd6ca86d}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Guyue},
+           giveni={G\bibinitperiod}}}%
+        {{hash=6277f2648d26d7c913cee2ca1f7e05b8}{%
+           family={Sun},
+           familyi={S\bibinitperiod},
+           given={Changqing},
+           giveni={C\bibinitperiod}}}%
+        {{hash=a1cd57e4905fff02bf1470887d0cf7d3}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Jorka},
+           giveni={J\bibinitperiod}}}%
+        {{hash=5e529ba9fe6fedc89ae55c4544722892}{%
+           family={Jorswieck},
+           familyi={J\bibinitperiod},
+           given={Eduard},
+           giveni={E\bibinitperiod}}}%
+        {{hash=cffd355887e938e9121d9a52295539d9}{%
+           family={Xiao},
+           familyi={X\bibinitperiod},
+           given={Bin},
+           giveni={B\bibinitperiod}}}%
+        {{hash=f90827cd0ca8cb78eba75a934db828a0}{%
+           family={Hu},
+           familyi={H\bibinitperiod},
+           given={Aiqun},
+           giveni={A\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {MDPI}%
+      }
+      \strng{namehash}{953fb065ec9a470b097ef971b1c940ca}
+      \strng{fullhash}{2349062a1fca85335b930b266f57bb80}
+      \strng{bibnamehash}{953fb065ec9a470b097ef971b1c940ca}
+      \strng{authorbibnamehash}{953fb065ec9a470b097ef971b1c940ca}
+      \strng{authornamehash}{953fb065ec9a470b097ef971b1c940ca}
+      \strng{authorfullhash}{2349062a1fca85335b930b266f57bb80}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Entropy}
+      \field{number}{5}
+      \field{title}{Physical layer key generation in 5G and beyond wireless communications: Challenges and opportunities}
+      \field{volume}{21}
+      \field{year}{2019}
+      \field{pages}{424}
+      \range{pages}{1}
+    \endentry
+    \entry{mogul1997potential}{article}{}
+      \name{author}{4}{}{%
+        {{hash=3e41c386f4e55fb47491ac84292b7c8d}{%
+           family={Mogul},
+           familyi={M\bibinitperiod},
+           given={Jeffrey\bibnamedelima C},
+           giveni={J\bibinitperiod\bibinitdelim C\bibinitperiod}}}%
+        {{hash=7694f70887e732e716c521cede34f75e}{%
+           family={Douglis},
+           familyi={D\bibinitperiod},
+           given={Fred},
+           giveni={F\bibinitperiod}}}%
+        {{hash=a2f03739ecbec5fd41971c58f390f197}{%
+           family={Feldmann},
+           familyi={F\bibinitperiod},
+           given={Anja},
+           giveni={A\bibinitperiod}}}%
+        {{hash=cbc3c59d72b251c9aa186854f0a5aeff}{%
+           family={Krishnamurthy},
+           familyi={K\bibinitperiod},
+           given={Balachander},
+           giveni={B\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {ACM New York, NY, USA}%
+      }
+      \strng{namehash}{fee11b4e6ed9431124ac614171de5567}
+      \strng{fullhash}{0bd31c3de2056c57e1008c969dd3e2df}
+      \strng{bibnamehash}{fee11b4e6ed9431124ac614171de5567}
+      \strng{authorbibnamehash}{fee11b4e6ed9431124ac614171de5567}
+      \strng{authornamehash}{fee11b4e6ed9431124ac614171de5567}
+      \strng{authorfullhash}{0bd31c3de2056c57e1008c969dd3e2df}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{ACM SIGCOMM Computer Communication Review}
+      \field{number}{4}
+      \field{title}{Potential benefits of delta encoding and data compression for HTTP}
+      \field{volume}{27}
+      \field{year}{1997}
+      \field{pages}{181\bibrangedash 194}
+      \range{pages}{14}
+    \endentry
+    \entry{nist2015secure}{report}{}
+      \name{author}{1}{}{%
+        {{hash=ef9cb61878e61d434507444346b29d1a}{%
+           family={{National Institute of Standards and Technology}},
+           familyi={N\bibinitperiod}}}%
+      }
+      \list{institution}{1}{%
+        {U.S. Department of Commerce}%
+      }
+      \strng{namehash}{ef9cb61878e61d434507444346b29d1a}
+      \strng{fullhash}{ef9cb61878e61d434507444346b29d1a}
+      \strng{bibnamehash}{ef9cb61878e61d434507444346b29d1a}
+      \strng{authorbibnamehash}{ef9cb61878e61d434507444346b29d1a}
+      \strng{authornamehash}{ef9cb61878e61d434507444346b29d1a}
+      \strng{authorfullhash}{ef9cb61878e61d434507444346b29d1a}
+      \field{sortinit}{N}
+      \field{sortinithash}{22369a73d5f88983a108b63f07f37084}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{number}{FIPS PUB 180-4}
+      \field{title}{Secure Hash Standard (SHS)}
+      \field{type}{techreport}
+      \field{year}{2015}
+      \verb{doi}
+      \verb 10.6028/NIST.FIPS.180-4
+      \endverb
     \endentry
     \entry{fi16030078}{article}{}
       \name{author}{4}{}{%
@@ -112,6 +667,116 @@
       \verb https://www.mdpi.com/1999-5903/16/3/78
       \endverb
     \endentry
+    \entry{schwartz1980fast}{article}{}
+      \name{author}{1}{}{%
+        {{hash=ebc4323816b0a7f3d95be317e3b9708f}{%
+           family={Schwartz},
+           familyi={S\bibinitperiod},
+           given={Jacob\bibnamedelima T},
+           giveni={J\bibinitperiod\bibinitdelim T\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {ACM New York, NY, USA}%
+      }
+      \strng{namehash}{ebc4323816b0a7f3d95be317e3b9708f}
+      \strng{fullhash}{ebc4323816b0a7f3d95be317e3b9708f}
+      \strng{bibnamehash}{ebc4323816b0a7f3d95be317e3b9708f}
+      \strng{authorbibnamehash}{ebc4323816b0a7f3d95be317e3b9708f}
+      \strng{authornamehash}{ebc4323816b0a7f3d95be317e3b9708f}
+      \strng{authorfullhash}{ebc4323816b0a7f3d95be317e3b9708f}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of the ACM (JACM)}
+      \field{number}{4}
+      \field{title}{Fast probabilistic algorithms for verification of polynomial identities}
+      \field{volume}{27}
+      \field{year}{1980}
+      \field{pages}{701\bibrangedash 717}
+      \range{pages}{17}
+    \endentry
+    \entry{strinati2024goal}{inproceedings}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{5}{}{%
+        {{hash=df769da5c3031152b78dc9fafa3ddf23}{%
+           family={Strinati},
+           familyi={S\bibinitperiod},
+           given={Emilio\bibnamedelima Calvanese},
+           giveni={E\bibinitperiod\bibinitdelim C\bibinitperiod}}}%
+        {{hash=d8ab4d92b4b5d49fe95f9b52a0356bd9}{%
+           family={Di\bibnamedelima Lorenzo},
+           familyi={D\bibinitperiod\bibinitdelim L\bibinitperiod},
+           given={Paolo},
+           giveni={P\bibinitperiod}}}%
+        {{hash=b296007b01d2e906ea4e171605bb8c03}{%
+           family={Sciancalepore},
+           familyi={S\bibinitperiod},
+           given={Vincenzo},
+           giveni={V\bibinitperiod}}}%
+        {{hash=4e47423822efbeb495a48f98eb1f4cf3}{%
+           family={Aijaz},
+           familyi={A\bibinitperiod},
+           given={Adnan},
+           giveni={A\bibinitperiod}}}%
+        {{hash=15656cbe365762a40009ab6155b3b3f6}{%
+           family={Kountouris},
+           familyi={K\bibinitperiod},
+           given={Marios},
+           giveni={M\bibinitperiod}}}%
+      }
+      \list{organization}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{63b408f38795a0293d4d2012753f3ab6}
+      \strng{fullhash}{e2a64c662c213d491d94e2818487073c}
+      \strng{bibnamehash}{63b408f38795a0293d4d2012753f3ab6}
+      \strng{authorbibnamehash}{63b408f38795a0293d4d2012753f3ab6}
+      \strng{authornamehash}{63b408f38795a0293d4d2012753f3ab6}
+      \strng{authorfullhash}{e2a64c662c213d491d94e2818487073c}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{2024 Joint European Conference on Networks and Communications and 6G Summit (EuCNC/6G Summit)}
+      \field{title}{Goal-Oriented and Semantic Communication in 6G AI-Native Networks: The 6G-GOALS Approach}
+      \field{year}{2024}
+      \field{pages}{505\bibrangedash 510}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1109/EuCNC/6GSummit60053.2024.10597087
+      \endverb
+    \endentry
+    \entry{tabuada2007event}{article}{}
+      \name{author}{1}{}{%
+        {{hash=fa077b33d45928296923ab6a3c97f740}{%
+           family={Tabuada},
+           familyi={T\bibinitperiod},
+           given={Paulo},
+           giveni={P\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{fa077b33d45928296923ab6a3c97f740}
+      \strng{fullhash}{fa077b33d45928296923ab6a3c97f740}
+      \strng{bibnamehash}{fa077b33d45928296923ab6a3c97f740}
+      \strng{authorbibnamehash}{fa077b33d45928296923ab6a3c97f740}
+      \strng{authornamehash}{fa077b33d45928296923ab6a3c97f740}
+      \strng{authorfullhash}{fa077b33d45928296923ab6a3c97f740}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Automatic Control}
+      \field{number}{9}
+      \field{title}{Event-triggered real-time scheduling of stabilizing control tasks}
+      \field{volume}{52}
+      \field{year}{2007}
+      \field{pages}{1680\bibrangedash 1685}
+      \range{pages}{6}
+    \endentry
     \entry{9013428}{inproceedings}{}
       \name{author}{5}{}{%
         {{hash=cae4024204576ac785b7029350f7889d}{%
@@ -159,6 +824,44 @@
       \verb 10.1109/GLOBECOM38437.2019.9013428
       \endverb
       \keyw{Internet;Robot control;Manipulators;Delays;Visualization}
+    \endentry
+    \entry{zhang2025semantic}{article}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{3}{}{%
+        {{hash=28b6504d56c03d7d44c0ecca06ae0869}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Ping},
+           giveni={P\bibinitperiod}}}%
+        {{hash=7836d4638c6aaeead4c017ca86dd5ba6}{%
+           family={Xu},
+           familyi={X\bibinitperiod},
+           given={Wenjun},
+           giveni={W\bibinitperiod}}}%
+        {{hash=a753993c6afc6bfea114ea4114b2e619}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Hui},
+           giveni={H\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{15233aee0b7c54c30f7ccb176e0c0503}
+      \strng{fullhash}{b07a6889179cfc5f02bc46e79eb61a7a}
+      \strng{bibnamehash}{b07a6889179cfc5f02bc46e79eb61a7a}
+      \strng{authorbibnamehash}{b07a6889179cfc5f02bc46e79eb61a7a}
+      \strng{authornamehash}{15233aee0b7c54c30f7ccb176e0c0503}
+      \strng{authorfullhash}{b07a6889179cfc5f02bc46e79eb61a7a}
+      \field{sortinit}{Z}
+      \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Access}
+      \field{note}{Early Access}
+      \field{title}{Semantic Communication Empowered 6G Networks: Techniques, Applications, and Challenges}
+      \field{year}{2025}
     \endentry
   \enddatalist
 \endrefsection

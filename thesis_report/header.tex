@@ -34,7 +34,7 @@
 	DIV=13,								% Proportion for empty and non-empty parts of a page
 	%twoside,
 	titlepage,							% Support for title environment
-	tudfonts=false,					% Do not use the TUD font (not installed in container)
+	cdfont=false,					% Do not use the TUD font (not installed in container)
 	headinclude		= true,				% Include header in typearea calculation
 	footinclude		= false,			% Include footer in typearea calculation
 	twoside			= false,			% Two-sided printing - true or false
@@ -58,6 +58,13 @@
 \usepackage[utf8]{inputenc} % UTF-8 Support
 \usepackage{lmodern} % scalable Latin Modern fonts
 \usepackage[T1]{fontenc} % T1 Fonts for font encoding
+% Avoid repeated font warnings for lmss/sbx (tudscr requests sbx; map to semi-bold).
+% The lmss font definition file is loaded lazily; force-load it so our override sticks.
+\makeatletter
+\InputIfFileExists{t1lmss.fd}{}{}
+\makeatother
+\DeclareFontShape{T1}{lmss}{sb}{n}{<->ssub*lmss/b/n}{}
+\DeclareFontShape{T1}{lmss}{sbx}{n}{<->ssub*lmss/b/n}{}
 \usepackage[english]{babel} % English language
 \usepackage[babel]{microtype} % better layout of the text
 % ===============================================
@@ -92,6 +99,8 @@
 \usepackage{caption}	% Packet to support captions for subfigures
 \usepackage{subcaption}	% Packet to support subfigure environments
 %\renewcommand\thesubfigure{(\alph{subfigure})}% für Klammern bei Referenz der Subfigure(z. B. Abbildung 3.1(a))
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
 % ===============================================
 %	Additional packages
 % ===============================================

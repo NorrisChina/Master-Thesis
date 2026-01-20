@@ -1,0 +1,17 @@
+% Auto-generated from tver_ci_table_nver16_96_4001_100KB_1MiB_5MiB_ci5.csv
+\begin{table}[!t]
+\centering
+\caption{Measured verifier generation time $t_{ver}$ for LiDAR-scale payload sizes ($n_{ver}=16$). Values are mean $\pm$ 95\% CI half-width; CI is controlled to $\leq 5\%$ relative error.}
+\label{tab:tver_lidar_scalability}
+\begin{tabular}{l r r r}
+\toprule
+Payload & $n_{data}$ (bits) & SHA-256 $t_{ver}$ ($\mu s$) & RS-ID $t_{ver}$ ($\mu s$) \\
+\midrule
+12 B & 96 & $2.06 \pm 0.06$ & $1.81 \pm 0.02$ \\
+501 B & 4001 & $15.27 \pm 0.30$ & $24.69 \pm 0.13$ \\
+100 KB & 819200 & $2702.45 \pm 20.69$ & $5208.16 \pm 139.68$ \\
+1 MiB & 8388608 & $28388.94 \pm 916.15$ & $52728.32 \pm 2396.59$ \\
+5 MiB & 41943040 & $140418.57 \pm 1286.59$ & $271339.25 \pm 7741.95$ \\
+\bottomrule
+\end{tabular}
+\end{table}
