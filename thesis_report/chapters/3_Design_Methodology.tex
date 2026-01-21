@@ -160,7 +160,7 @@ We model the (scalar) robot state as a discrete-time random walk:
 \end{equation}
 where $\delta_t$ represents bounded motion noise (uniform increments) or unbounded disturbances (Gaussian increments). In particular, a uniform increment $\delta_t\sim\mathcal{U}(-\Delta_{step},\Delta_{step})$ captures hard kinematic limits, while a Gaussian increment $\delta_t\sim\mathcal{N}(0,\sigma_{step}^2)$ captures occasional large excursions.
 
-On the receiver side, the \gls{dt} uses a \textbf{Zero-Order Hold (ZOH)} predictor: in the absence of a correction event, it assumes the last synchronized state remains valid,
+On the receiver side, the \gls{dt} uses a \textbf{\gls{zoh}} predictor: in the absence of a correction event, it assumes the last synchronized state remains valid,
 \begin{equation}
     \hat{S}_t = \hat{S}_{t-1} \quad \text{unless a fallback correction is triggered.}
 \end{equation}
@@ -178,5 +178,8 @@ To keep the dynamic simulator consistent with the Random Oracle analysis in Sect
     p_{miss,K}^{SHA} \approx \frac{|\mathcal{A}_K|}{2^{n_{ver}}},
 \end{equation}
 where $|\mathcal{A}_K|$ is computed over a quantized state domain (resolution $\Delta$). For a 1D scalar state this yields $|\mathcal{A}_K|\approx 2\lfloor K/\Delta\rfloor+1$.
+
+\noindent\textbf{Decoder compute cost.}
+Beyond collision risk, the same acceptance-set size determines the DT-side compute and memory footprint: a direct implementation precomputes the verifier set $\mathcal{V}_K$ by hashing each quantized state in $\mathcal{A}_K$, i.e., $\mathcal{O}(|\mathcal{A}_K|)$ hash evaluations per DT update, and stores up to $|\mathcal{V}_K|\le |\mathcal{A}_K|$ verifier codewords. This introduces a practical engineering trade-off between larger tolerances $K$ (fewer fallbacks) and decoder workload.
 
 Beyond per-tick rates, the drift model enables time-extended safety metrics. We report (i) the \textit{breach duration} $L_K$, defined as the length of a consecutive streak where $E_t>K$, and (ii) a \textit{physical danger} duration $L_D$ for a fixed threshold $D$ (application-specific). These quantities reveal how $K$ creates a masking risk (drift grows without checks) and how collisions create an unbounded risk (checks occur but do not correct).

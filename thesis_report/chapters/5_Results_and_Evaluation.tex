@@ -200,6 +200,40 @@ Figure~\ref{fig:kid_mechanisms} dissects how the protocol parameters influence t
     \label{fig:kid_mechanisms}
 \end{figure*}
 
+\noindent\textit{Grid-level summary and hidden decoder cost.}
+While the line plots emphasize one parameter at a time, a compact view of the full $(K,n_{ver})$ design grid is useful for selecting practical operating regions. Figure~\ref{fig:kid_heatmaps} summarizes speedup and overall risk over the complete grid. In addition, K-ID introduces a DT-side cost that is not visible in bandwidth/latency figures: the verifier set $\mathcal{V}_K$ is built by hashing all acceptable quantized states in $\mathcal{A}_K$, so decoder work scales with $|\mathcal{A}_K|\approx 2\lfloor K/\Delta\rfloor+1$. Figure~\ref{fig:kid_decoder_cost} visualizes this growth.
+
+\begin{figure*}[!htbp]
+    \centering
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/plots/kid_heatmap_gaussian_sha256.png}
+        \caption{Gaussian model (SHA-256 truncation).}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/plots/kid_heatmap_uniform_sha256.png}
+        \caption{Variance-matched Uniform model (SHA-256 truncation).}
+    \end{subfigure}
+    \caption{Heatmap summary of the K-ID grid over $(K,n_{ver})$. The left panel in each figure shows speedup; the right panel shows empirical overall risk $P(\mathrm{unsafe}\cap\mathrm{accept})$ (log-scaled).}
+    \label{fig:kid_heatmaps}
+\end{figure*}
+
+\begin{figure*}[!htbp]
+    \centering
+    \includegraphics[width=0.78\textwidth]{figures/plots/kid_decoder_cost_gaussian_sha256.png}
+    \caption{Hidden DT-side cost of K-ID: acceptance-set size $|\mathcal{A}_K|$ and distinct verifier count $|\mathcal{V}_K|$ grow with tolerance $K$ (here for $\Delta=0.1$). This motivates treating $K$ as a joint network-and-compute design parameter.}
+    \label{fig:kid_decoder_cost}
+\end{figure*}
+
+\begin{figure*}[!htbp]
+    \centering
+    \includegraphics[width=0.78\textwidth]{figures/plots/kid_delta_sensitivity_gaussian_sha256.png}
+    \caption{Quantization-resolution sensitivity ($\Delta$). A finer $\Delta$ increases decoder cost $|\mathcal{A}_K|$ (more hashes) and can shift the modeled overall-risk proxy. This highlights that $\Delta$ should be selected based on sensor precision and DT compute budget rather than treated as an arbitrary constant.}
+    \label{fig:kid_delta_sensitivity}
+\end{figure*}
+
 \begin{figure*}[!htbp]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
@@ -281,17 +315,17 @@ There is no single best parameter set; the optimal choice depends on the applica
 \section{Dynamic Evaluation: Random Walk with Drift}
 \label{sec:rw_drift_eval}
 
-The parameter sweep in Section~\ref{sec:kid_eval} estimates per-tick risk under an i.i.d. state model. However, safety-critical systems are impacted by \textit{time correlation}: a missed correction can persist and compound as the robot continues moving. We therefore evaluate a dynamic drift model (Section~\ref{sec:random_walk_model}) in which the robot evolves as a random walk and the \gls{dt} uses a ZOH predictor.
+The parameter sweep in Section~\ref{sec:kid_eval} estimates per-tick risk under an i.i.d. state model. However, safety-critical systems are impacted by \textit{time correlation}: a missed correction can persist and compound as the robot continues moving. We therefore evaluate a dynamic drift model (Section~\ref{sec:random_walk_model}) in which the robot evolves as a random walk and the \gls{dt} uses a \gls{zoh} predictor.
 
 \subsection{Qualitative Behavior (Drift \& Escape Time Series)}
-Figure~\ref{fig:rw_timeseries} visualizes the \textit{drift and escape} process directly in the state domain. The blue curve shows the robot true state $S_t$ undergoing a random walk, while the orange dashed curve shows the \gls{dt} estimate $\hat{S}_t$ under a ZOH-style reference (held constant). The green band highlights the semantic safety set $\mathcal{A}_K$ and the red background indicates the unsafe region.
+Figure~\ref{fig:rw_timeseries} visualizes the \textit{drift and escape} process directly in the state domain. The blue curve shows the robot true state $S_t$ undergoing a random walk, while the orange dashed curve shows the \gls{dt} estimate $\hat{S}_t$ under a \gls{zoh}-style reference (held constant). The green band highlights the semantic safety set $\mathcal{A}_K$ and the red background indicates the unsafe region.
 
 The green markers indicate successful detections: when the trajectory breaches the boundary $K$, the protocol triggers fallback and the system is corrected (visualized here as an immediate reset to the reference). The red crosses are the critical events: a hash collision causes a miss exactly at the boundary breach, so the \gls{dt} fails to react and the trajectory continues to drift deeper into the red region. This makes the \textit{accumulating, potentially unbounded} risk visible in a single glance.
 
 \begin{figure*}[!htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures/plots/random_walk_drift_gaussian_step2_D15_escape_timeseries.png}
-    \caption{Drift-and-escape visualization for the dynamic random walk model ($K=10$). The robot state $S_t$ (blue) performs a random walk. The \gls{dt} estimate $\hat{S}_t$ (orange, dashed) is held constant (ZOH reference). The green band indicates the semantic safety set $\mathcal{A}_K$ and the red background the unsafe region. Green dots mark successful corrections after boundary breach; red crosses mark collision-induced misses where the boundary breach is not corrected, allowing the trajectory to continue diverging ("escape").}
+    \caption{Drift-and-escape visualization for the dynamic random walk model ($K=10$). The robot state $S_t$ (blue) performs a random walk. The \gls{dt} estimate $\hat{S}_t$ (orange, dashed) is held constant (\gls{zoh} reference). The green band indicates the semantic safety set $\mathcal{A}_K$ and the red background the unsafe region. Green dots mark successful corrections after boundary breach; red crosses mark collision-induced misses where the boundary breach is not corrected, allowing the trajectory to continue diverging ("escape").}
     \label{fig:rw_timeseries}
 \end{figure*}
 
@@ -319,3 +353,13 @@ To quantify time-extended risk, we measure (i) the \textit{breach duration} $L_K
 
 \noindent\textit{Masking vs. collision risk.}
 Two distinct mechanisms drive risk as $K$ increases. First, a larger tolerance allows the drift to grow silently for longer (masking), increasing the peak error at the moment verification begins. Second, the miss proxy grows with $K$ (larger acceptable set), meaning that when a boundary breach does occur, it is more likely to be missed for short $n_{ver}$, extending the breach duration. This dynamic view clarifies why low verifier lengths can be dangerous even when the instantaneous collision probability seems acceptable.
+
+\noindent\textit{Survival-style view (inter-transmission time).}
+Beyond tail metrics of breach duration and peak drift, it is often useful for scheduling to quantify how long the system typically remains silent between transmissions. We therefore measure the inter-transmission time (IFT), defined as the number of time steps between consecutive check events ($E_t>K$). Figure~\ref{fig:rw_ift_cdf} plots empirical CDFs of IFT, enabling statements such as: \emph{“with 95\% probability, the system transmits at most once every $X$ ticks”}.
+
+\begin{figure*}[!htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth]{figures/plots/random_walk_drift_gaussian_step2_D15_ift_cdf.png}
+    \caption{Empirical CDF of inter-transmission times (IFT) for the random-walk drift model. Larger $K$ increases the silent intervals (masking), while smaller $n_{ver}$ can shorten intervals by extending uncorrected excursions once a breach occurs.}
+    \label{fig:rw_ift_cdf}
+\end{figure*}

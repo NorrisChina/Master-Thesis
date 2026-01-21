@@ -191,7 +191,7 @@ python3 experiments/plot_kid_parameter_sweep.py \
 
 \section{Dynamic Drift Experiment (Random Walk \& Correction)}
 \label{sec:rw_drift_setup}
-To evaluate time-correlated error accumulation (Section~\ref{sec:random_walk_model}), we implement a dynamic simulator in which the robot state evolves as a random walk and the \gls{dt} uses a ZOH predictor. The protocol applies the K-ID tolerance gate each tick and only attempts verification when the drift exceeds $K$. A miss (collision) during verification prevents a correction and allows the drift to accumulate further, producing extended boundary breaches.
+To evaluate time-correlated error accumulation (Section~\ref{sec:random_walk_model}), we implement a dynamic simulator in which the robot state evolves as a random walk and the \gls{dt} uses a \gls{zoh} predictor. The protocol applies the K-ID tolerance gate each tick and only attempts verification when the drift exceeds $K$. A miss (collision) during verification prevents a correction and allows the drift to accumulate further, producing extended boundary breaches.
 
 \subsection{Parameterization}
 Unless otherwise stated, the reported dynamic figures use a Gaussian step model $\delta_t\sim\mathcal{N}(0,\sigma_{step}^2)$ with $\sigma_{step}=2$ and a quantization resolution of $\Delta=1$ for the acceptance-set size proxy $|\mathcal{A}_K|\approx 2\lfloor K/\Delta\rfloor+1$. We sweep $K\in\{2,5,10,20\}$ and verifier sizes $n_{ver}\in\{8,12,16\}$ over 120{,}000 ticks per run with 10 replicates (base seed 42). For the physical danger metric, we set $D=15$ to visualize sustained unsafe operation within the simulated time horizon.
@@ -213,4 +213,45 @@ python3 experiments/plot_random_walk_drift_sweep.py \
     --demo --demo-ticks 2500 --demo-seed 125 \
     --demo-step-dist gaussian --demo-step-param 2.0 \
     --demo-k 10 --demo-danger 15 --demo-nver-a 16 --demo-nver-b 8
+\end{verbatim}
+
+\noindent To quantify the decoder-side compute footprint of K-ID and to summarize the full $(K,n_{ver})$ grid, we generate additional derived plots from the static sweep CSVs:
+\begin{verbatim}
+python3 experiments/plot_kid_decoder_cost.py \
+    --csv experiments/results/kid_sweep_gaussian_both_ndata4001.csv \
+    --system sha256_trunc \
+    --out thesis_report/figures/plots/kid_decoder_cost_gaussian_sha256.png
+
+python3 experiments/plot_kid_heatmaps.py \
+    --csv experiments/results/kid_sweep_gaussian_both_ndata4001.csv \
+    --system sha256_trunc \
+    --title "Gaussian (n_data=4001)" \
+    --out thesis_report/figures/plots/kid_heatmap_gaussian_sha256.png
+
+python3 experiments/plot_kid_heatmaps.py \
+    --csv experiments/results/kid_sweep_uniform_both_ndata4001.csv \
+    --system sha256_trunc \
+    --title "Uniform (n_data=4001)" \
+    --out thesis_report/figures/plots/kid_heatmap_uniform_sha256.png
+
+python3 experiments/plot_kid_resolution_sensitivity.py \
+    --system sha256_trunc --error gaussian --robot-std 12 \
+    --nver 8 12 16 --k 2 5 10 20 --delta 1 0.1 0.01 \
+    --out thesis_report/figures/plots/kid_delta_sensitivity_gaussian_sha256.png
+\end{verbatim}
+
+\noindent For a survival-style view of transmission intervals in the dynamic drift model, we export inter-transmission times (IFT) and plot empirical CDFs:
+\begin{verbatim}
+python3 experiments/random_walk_drift_sweep.py \
+    --ticks 120000 --replicates 10 --seed 42 \
+    --step-dist gaussian --step-param 2.0 \
+    --value-resolution 1.0 --danger-threshold 15 \
+    --k 2 5 10 20 --nver 8 12 16 \
+    --out-csv experiments/results/random_walk_drift_sweep_gaussian_step2_D15.csv \
+    --out-ift-csv experiments/results/random_walk_ift_gaussian_step2_D15.csv
+
+python3 experiments/plot_random_walk_ift_cdf.py \
+    --mode by_nver \
+    --ift-csv experiments/results/random_walk_ift_gaussian_step2_D15_K*_nver*.csv \
+    --out thesis_report/figures/plots/random_walk_drift_gaussian_step2_D15_ift_cdf.png
 \end{verbatim}
