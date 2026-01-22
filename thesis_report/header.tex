@@ -9,7 +9,6 @@
 % ===============================================
 % A. DOCUMENT CLASS (options and packets to use)
 % ===============================================
-\RequirePackage{hyphsubst}	% better german hyphenation rules
 \documentclass[
 	paper		= a4,	% Use A4 paper
 	english,
@@ -49,9 +48,18 @@
 	listof 			= totoc,			% Include Lists in Table of Contents
 	pagesize		= pdftex			% Define Typearea for pdftex usage
 ]{tudscrreprt} 				% use TU Dresden KOMA-Script report class
+
+% better hyphenation rules (must be loaded after the class)
+\usepackage{hyphsubst}
 % Allow inclusion of newer PDF versions (e.g., 1.7) without warnings
 \pdfminorversion=7
 \usepackage{scrhack}	% includes koma script patches for other packages
+
+% Use non-bold chapter headings (chapters 1--6) for a more conventional thesis look.
+% Keep sizes controlled by KOMA/TUD-Script; only remove bold weight.
+\addtokomafont{chapter}{\mdseries}
+\addtokomafont{chapterprefix}{\mdseries}
+\addtokomafont{chapterentry}{\mdseries}
 % ===============================================
 %	Character coding and fonts for the document
 % \usepackage[default,scale=0.95]{opensans}	% font for the CD
@@ -96,6 +104,7 @@
 % ===============================================
 \usepackage{pdfpages}	% Einbinden von PDF als komplette Seite
 \usepackage{graphicx}	% Einbinden von Bildern
+\usepackage{float}		% Provides the [H] float specifier for exact placement
 \usepackage{caption}	% Packet to support captions for subfigures
 \usepackage{subcaption}	% Packet to support subfigure environments
 %\renewcommand\thesubfigure{(\alph{subfigure})}% für Klammern bei Referenz der Subfigure(z. B. Abbildung 3.1(a))
@@ -179,7 +188,7 @@
 	nomain,%
 	nogroupskip,%
 	toc,%
-	section=chapter,%
+	section=section,%
 	nostyles,%
 	translate=babel,%
 	xindy={language=german-din},%

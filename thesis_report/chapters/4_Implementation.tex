@@ -1,42 +1,8 @@
 \chapter{Implementation}
+\label{ch:implementation}
 \label{sec:implementation}
 
 This chapter summarizes the practical implementation used to instantiate and evaluate the theoretical models introduced in Chapter~\ref{ch:design_methodology}. The evaluation is organized around three complementary models. First, we implement the end-to-end \gls{id} latency model and generate bandwidth and desynchronization sensitivity plots. Second, we implement the tolerance-based \gls{kid} protocol and perform a parameter sweep over $(K,n_{ver})$ to expose the safety--performance trade-off and identify Pareto-optimal operating points. Third, we implement a time-correlated dynamic model in which \gls{kid} operates under random-walk drift, allowing us to study accumulation effects such as sustained boundary breaches after missed corrections.
-
-\section{Experimental Parameters}
-This chapter details the practical setup used to validate the theoretical models from Chapter \ref{ch:design_methodology}. Unless otherwise stated, we use a baseline desynchronization probability of $p_{desync}=0.1$; this value is held fixed for the bandwidth sweep and is varied explicitly when evaluating desynchronization sensitivity. We evaluate two data payloads: a small 96-bit message and a larger 4001-bit message. For each payload, we test verifier lengths of $n_{ver} \in \{4, 16\}$ bits, representing a small and a large verifier size.
-
-\subsection{Evaluation Scenarios (Bandwidth Baselines)}
-We use two bandwidth operating points, each tailored to the objective of the corresponding evaluation. For the baseline \gls{id} sensitivity results in Section~\ref{sec:latency_eval} (Chapter~\ref{ch:results}), we report single-bandwidth slices at $B=5$~Mbps to isolate the impact of prediction quality ($p_{desync}$) and payload size ($n_{data}$) without making the channel the sole bottleneck; this also complements the full bandwidth sweeps (10~kbps--10~Mbps). For the \gls{kid} parameter sweep and Pareto analysis in Section~\ref{sec:kid_eval}, we adopt a bandwidth-constrained setting ($B=1$~Mbps) because \gls{kid} primarily trades computation for reduced traffic (fewer fallback transmissions), and this benefit is most visible when the transmission term $n_{data}/B$ dominates.
-
-In addition, we compute the theoretical collision probabilities ($p_{miss}$) for this parameter grid using the reliability bounds derived in Section~\ref{sec:reliability_analysis}. These values are used to instantiate the hybrid latency model consistently across the two encoding mechanisms.
-
-\subsection{LiDAR-Scale Scalability Parameters}
-\label{sec:lidar_scalability_params}
-To study how the compute overhead $t_{ver}$ scales with high-dimensional sensor payloads, we perform an additional scalability experiment at $n_{ver}=16$. We measure verifier generation time for payload sizes representative of LiDAR message chunks and frame-scale payloads:
-\begin{equation}
-        n_{data} \in \{12\,\mathrm{B},\; 501\,\mathrm{B},\; 100\,\mathrm{KB},\; 1\,\mathrm{MiB},\; 5\,\mathrm{MiB}\}
-\end{equation}
-where 12~B and 501~B correspond to the 96-bit and 4001-bit baselines used elsewhere in the thesis. For \gls{sha}, the payload is represented as a byte list of length $\lceil n_{data}/8\rceil$. For \gls{rsid}, the payload is modeled as packed $\mathrm{GF}(2^{n_{ver}})$ symbols with
-\begin{equation}
-        k = \left\lceil \frac{n_{data}}{n_{ver}} \right\rceil
-\end{equation}
-so that increasing payload size increases the number of field coefficients processed by the algebraic encoder.
-
-All $t_{ver}$ measurements report mean $\pm$ 95\% CI half-width, and the timing configuration is chosen to keep the relative CI within approximately 5\% for each point. The scripts used for these measurements are located in \texttt{experiments/}:
-\begin{verbatim}
-python3 experiments/measure_tver_ci_table.py \
-    --nver-bits 16 \
-    --ndata-bits 96 4001 819200 8388608 41943040 \
-    --batches 60 --min-iters 200 \
-    --out-csv experiments/results/tver_ci_table_nver16.csv
-
-python3 experiments/plot_tver_ci_table.py \
-    --csv experiments/results/tver_ci_table_nver16.csv \
-    --out experiments/results/tver_ci_table_nver16.png
-\end{verbatim}
-
-For the corresponding end-to-end latency visualization over payload size (reported in Chapter~\ref{ch:results}), we fix $B=5$ Mbps and $p_{desync}=0.1$ and evaluate the hybrid latency model at $n_{ver}=16$ across the same payload sizes.
 
 \section{Data Packet Structure Abstraction}
 \label{sec:packet_structure}
@@ -73,15 +39,13 @@ In the latency model, the header, timestamp, and checksum/CRC are treated as fix
 
 \section{Software Architecture}
 \label{sec:software_architecture}
-This section summarizes the software structure used to keep the simulator modular.
+To facilitate rapid prototyping and evaluation of the proposed models, we implement a modular Python simulator.
 
-\subsection{Modular Simulator Architecture}
-\label{sec:modular_architecture}
-Figure~\ref{fig:idsys_architecture} shows the high-level decomposition used throughout the Python experiments. The simulator is structured around three interchangeable components---\emph{Encoder}, \emph{Channel/Dynamics}, and \emph{Decoder/Decision}. This separation allows swapping SHA-256 and RS-ID encoders, switching between strict ID and tolerance-based K-ID decision rules, and evaluating both i.i.d. and time-correlated models without entangling implementation details.
+Figure~\ref{fig:idsys_architecture} shows the high-level decomposition used throughout the Python experiments. The simulator is structured around three interchangeable components---Encoder, Channel/Dynamics, and Decoder/Decision. This separation allows swapping SHA-256 and RS-ID encoders, switching between strict ID and tolerance-based K-ID decision rules, and evaluating both i.i.d. and time-correlated models without entangling implementation details.
 
-The interface between Encoder and Channel is a transmitted \emph{packet/frame}. In normal operation this contains only a verifier tag; on fallback it contains the full state payload. This matches the message abstraction in Figure~\ref{fig:id_frame_structure}.
+The interface between Encoder and Channel is a transmitted packet/frame. In normal operation this contains only a verifier tag; on fallback it contains the full state payload. This matches the message abstraction in Figure~\ref{fig:id_frame_structure}.
 
-\begin{figure}[!t]
+\begin{figure}[!htbp]
     \centering
     \begin{tikzpicture}[
         font=\small,
@@ -114,10 +78,12 @@ The interface between Encoder and Channel is a transmitted \emph{packet/frame}. 
     \label{fig:idsys_architecture}
 \end{figure}
 
+
 \section{Latency Plot Generation}
 To quantify the implications of the hybrid latency model, we evaluate the expected latency under systematic sweeps of the channel bandwidth $B$ and the desynchronization probability $p_{desync}$. All plots are generated for multiple payload sizes $n_{data}$, verifier lengths $n_{ver}$, and for both encoding mechanisms (SHA-256 vs. RS-ID), allowing us to compare regimes where \gls{id} provides a net latency advantage over traditional transmission.
 
-The latency evaluation uses the parameter grid defined in Section~4.1. The compute overheads $t_{ver}$ are taken from empirical measurements (Table~\ref{tab:tver_results}), and the collision probabilities $p_{miss}$ are computed from the theoretical bounds (Table~\ref{tab:pmiss_results}).
+The latency evaluation uses the parameter grid defined the same as ~\cite{9789759}, we use a baseline desynchronization probability of $p_{desync}=0.1$; this value is held fixed for the bandwidth sweep and is varied explicitly when evaluating desynchronization sensitivity. We evaluate two data payloads: a small 96-bit message and a larger 4001-bit message. For each payload, we test verifier lengths of $n_{ver} \in \{4, 16\}$ bits, representing a small and a large verifier size. The compute overheads $t_{ver}$ are taken from empirical measurements (Table~\ref{tab:tver_results}), and the collision probabilities $p_{miss}$ are computed from the theoretical bounds (Table~\ref{tab:pmiss_results}). All $t_{ver}$ measurements report mean $\pm$ 95\% CI half-width, and the timing configuration is chosen to keep the relative CI within approximately 5\% for each point. The scripts used for these measurements are located in \texttt{experiments/}:
+
 
 \subsection{Logic}
 For each configuration $(n_{data}, n_{ver})$ and each system (SHA-256 vs. RS-ID), the script evaluates the expected latency
@@ -131,7 +97,7 @@ The generated figures are shown in Chapter~\ref{sec:results_and_evaluation} for 
 In addition, we visualize the sensitivity to desynchronization by sweeping $p_{desync}\in[0,1]$ at a fixed bandwidth and plotting $L_{ID}$ against $p_{desync}$ for the same parameter grid (Figures~\ref{fig:latency_desync_96} and~\ref{fig:latency_desync_4001}).
 
 \subsection{SHA-256}
-The collision probability for a truncated hash function under the Random Oracle Model is independent of the data size and is given by Equation \ref{eq:sha_bound}:
+The collision probability for a truncated hash function under the Random Oracle Model is independent of the data size and is given by Equation \ref{eq:bound_sha}:
 \begin{equation}
     P_{miss}^{SHA} = 2^{-n_{ver}}
 \end{equation}
@@ -144,114 +110,102 @@ The collision probability for the algebraic construction is bounded by the Schwa
 \end{equation}
 The computed values for $n_{data}\in\{96,4001\}$ bits and $n_{ver}\in\{4,16\}$ bits (with the bound capped at 1 when applicable) are reported in Table~\ref{tab:pmiss_results} in Chapter~\ref{sec:results_and_evaluation}. These values highlight how the theoretical safety of RS-ID degrades with larger data sizes for a fixed verifier length, a key distinction from the cryptographic approach.
 
-\section{K-ID Parameter Sweep Setup}
+\subsection{LiDAR-Scale Scalability Parameters}
+\label{sec:lidar_scalability_params}
+To study how the compute overhead $t_{ver}$ scales with high-dimensional sensor payloads, we perform an additional scalability experiment at $n_{ver}=16$. We measure verifier generation time for payload sizes representative of LiDAR message chunks and frame-scale payloads:
+\begin{equation}
+        n_{data} \in \{12\,\mathrm{B},\; 501\,\mathrm{B},\; 100\,\mathrm{KB},\; 1\,\mathrm{MiB},\; 5\,\mathrm{MiB}\}
+\end{equation}
+where 12~B and 501~B correspond to the 96-bit and 4001-bit baselines used elsewhere in the thesis. For \gls{sha}, the payload is represented as a byte list of length $\lceil n_{data}/8\rceil$. For \gls{rsid}, the payload is modeled as packed $\mathrm{GF}(2^{n_{ver}})$ symbols with
+\begin{equation}
+        k = \left\lceil \frac{n_{data}}{n_{ver}} \right\rceil
+\end{equation}
+so that increasing payload size increases the number of field coefficients processed by the algebraic encoder.
+
+\subsection{Evaluation Scenarios (Bandwidth Baselines)}
+We use two bandwidth operating points, each tailored to the objective of the corresponding evaluation. For the baseline \gls{id} sensitivity results in Section~\ref{sec:latency_eval} (Chapter~\ref{ch:results}), we report single-bandwidth slices at $B=5$~Mbps to isolate the impact of prediction quality ($p_{desync}$) and payload size ($n_{data}$) without making the channel the sole bottleneck; this also complements the full bandwidth sweeps (10~kbps--10~Mbps). For the \gls{kid} parameter sweep and Pareto analysis in Section~\ref{sec:kid_eval}, we adopt a bandwidth-constrained setting ($B=1$~Mbps) because \gls{kid} primarily trades computation for reduced traffic (fewer fallback transmissions), and this benefit is most visible when the transmission term $n_{data}/B$ dominates.
+
+\section{K-ID Simulation Setup and Implementation}
 \label{sec:kid_setup}
-In addition to the bit-based latency evaluation, we implement the tolerance-based K-ID model introduced in Section~\ref{sec:kid_model} and perform a parameter sweep over $(K,n_{ver})$ to quantify the safety--latency trade-off of the K-ID decision rule.
 
-\subsection{Model and Metrics}
-The K-ID sweep uses a truncated SHA-256 verifier and reports the conditional miss rate $\Pr[\mathrm{accept}\mid\mathrm{unsafe}]$ (Equation~\eqref{eq:kid_sha_bound}), the fallback rate $\Pr[\mathrm{fallback}]$ across ticks, the expected latency from the hybrid model (Equation~\eqref{eq:kid_latency}), and the speedup defined as the ratio between the traditional transmission time $(n_{data}/B)$ and the expected K-ID latency. For the Pareto analysis in Chapter~\ref{ch:results}, we additionally use the empirical \emph{overall risk} $\Pr[\mathrm{unsafe}\cap\mathrm{accept}]$, estimated as $\texttt{miss\_count}/\texttt{ticks}$, to combine event frequency with conditional acceptance.
+To validate the theoretical K-ID framework proposed in Chapter 3, we implemented a stochastic simulation environment that quantifies the trade-off between the semantic tolerance radius $K$ and safety risks. The simulation mimics a constrained edge-link scenario, bridging the gap between theoretical error bounds and practical system performance.
 
-\subsection{State Space and Quantization}
-To avoid an artificially small discrete domain (which can force the empirical miss rate to become exactly zero for moderate $n_{ver}$), the robot state is modeled as a continuous random variable and then quantized:
-We sample $S_t\sim\mathcal{N}(\mu,\sigma^2)$, clip it to a physical range $[S_{min},S_{max}]$, quantize it to a resolution $\Delta$ (default $\Delta=0.1$), and hash the resulting integer index.
-This yields a discrete domain size of approximately $(S_{max}-S_{min})/\Delta + 1$.
+\subsection{Error Models and State Generation}
+\label{subsec:error_models}
+The simulation models the robot's state $S_t$ as a continuous random variable constrained to the physical domain of $[0, 100]$. To strictly evaluate the impact of error distribution shapes, we implemented two contrasting noise models—Gaussian and Uniform—while controlling for their noise energy.
 
-\subsection{Parameter Grid}
-Unless otherwise stated, we use a LiDAR-scale payload ($n_{data}=4001$ bits) at $B=1$ Mbps with a compute overhead of $t_{ver}=2.13\,\mu s$ (SHA-256, 96-bit state; Table~\ref{tab:tver_results}). The robot state is clipped to $[0,100]$ and quantized with $\Delta=0.1$. We evaluate two prediction-error models: (i) a Gaussian model $S_t\sim\mathcal{N}(\mu,\sigma^2)$ with $\mu=50$ and $\sigma=12$, and (ii) a variance-matched Uniform model $S_t\sim\mathcal{U}[\mu-a,\mu+a]$ with $a=\sqrt{3}\,\sigma$ to ensure comparable variance. We sweep $n_{ver}\in\{4,8,12,16\}$ and $K\in\{2,5,10,20\}$, using 200{,}000 Monte Carlo ticks per configuration with a fixed seed of 42.
+For the baseline Gaussian model ($S_t \sim \mathcal{N}(\mu, \sigma^2)$), we centered the mean at $\mu=50$ and specifically selected a standard deviation of $\sigma=16.0$. This parameter choice is engineered to maximize the utilization of the physical state space without violating its boundaries. Since the effective width of the Gaussian distribution ($3\sigma$) is $48$, the probability mass is concentrated within the interval $[2, 98]$. This configuration ensures that the simulation captures extreme, high-magnitude deviations typical of unbounded noise, while preserving the mathematical integrity of the Gaussian profile by avoiding significant truncation (clipping) at the physical limits of $0$ and $100$.
 
-\subsection{Reproducibility}
-The sweep and plot generation are implemented in the \texttt{experiments/} folder:
-The simulation is implemented in \texttt{experiments/kid\_parameter\_sweep.py} (optionally writing a CSV), and the plotting script \texttt{experiments/plot\_kid\_parameter\_sweep.py} reads that CSV and produces the figures used in Chapter~\ref{ch:results}.
-The following commands reproduce the CSV and plots (paths are relative to the repository root):
-\begin{verbatim}
-python3 experiments/kid_parameter_sweep.py \
-    --n-data-bits 4001 --bandwidth 1e6 --ticks 200000 --seed 42 \
-    --robot-mean 50 --robot-std 12 --physical-min 0 --physical-max 100 \
-    --value-resolution 0.1 --t-compute-us 2.13 \
-    --nver 4 8 12 16 --k 2 5 10 20 \
-    --system both --error-dist normal \
-    --out-csv experiments/results/kid_sweep_gaussian_both.csv
+For the comparative Uniform model ($S_t \sim \mathcal{U}[\mu-a, \mu+a]$), we enforce a strict variance-matching constraint to isolate the effect of bounded support. Equating the variance of the Uniform distribution ($a^2/3$) to the Gaussian baseline ($\sigma^2=16^2$) yields a half-width of $a = 16\sqrt{3} \approx 27.71$. Consequently, the Uniform model is defined over the interval $[22.29, 77.71]$. This derivation establishes a critical theoretical threshold: any tolerance radius $K$ exceeding $27.71$ should theoretically eliminate all collision risks for the Uniform case, a hypothesis we explicitly test in the parameter sweep.
 
-python3 experiments/plot_kid_parameter_sweep.py \
-    --csv experiments/results/kid_sweep_gaussian_both.csv \
-    --out-dir experiments/results --prefix kid_sweep_gaussian_both
+\begin{figure}[htbp]
+    \centering
+    % width=1.0\textwidth 保证图片占满通栏，因为横向图需要足够宽才清晰
+    \includegraphics[width=1.0\textwidth]{figures/error_models_sigma16.png}
+    
+    \caption{Visual comparison of the variance-matched error models configured with $\sigma=16$. 
+    (a) The Gaussian baseline is engineered to maximize physical space utilization: the effective $3\sigma$ range ($48$) fits tightly within the physical bounds ($50 \pm 48 = [2, 98]$), preventing truncation artifacts while maintaining high noise energy. 
+    (b) The Uniform model ($a \approx 27.71$) illustrates the ``Safe Harbor'' principle: the selected tolerance radius $K=30$ (orange bar) explicitly exceeds the noise support $a$, theoretically guaranteeing zero collision risk, whereas the Gaussian model retains residual tail risks outside the tolerance zone.}
+    
+    \label{fig:error_models}
+\end{figure}
 
-python3 experiments/kid_parameter_sweep.py \
-    --n-data-bits 4001 --bandwidth 1e6 --ticks 200000 --seed 42 \
-    --robot-mean 50 --robot-std 12 --physical-min 0 --physical-max 100 \
-    --value-resolution 0.1 --t-compute-us 2.13 \
-    --nver 4 8 12 16 --k 2 5 10 20 \
-    --system both --error-dist uniform \
-    --out-csv experiments/results/kid_sweep_uniform_both.csv
+\subsection{Computational Scalability and Latency Model}
+\label{subsec:scalability_model}
 
-python3 experiments/plot_kid_parameter_sweep.py \
-    --csv experiments/results/kid_sweep_uniform_both.csv \
-    --out-dir experiments/results --prefix kid_sweep_uniform_both
-\end{verbatim}
+To quantify the computational scalability of the K-ID decoder, we conduct a fine-grained sensitivity analysis by sweeping the quantization resolution $\Delta$ from $1.0$ down to $0.01$ on a logarithmic scale. We evaluate the latency impact across a spectrum of physical safety requirements, ranging from high-precision control ($R=2$) and intermediate tolerance ($R=10$) to the maximum ``Safe Harbor'' configuration ($R=30$) required to encapsulate the Uniform noise boundary ($a \approx 27.71$).
 
-\section{Dynamic Drift Experiment (Random Walk \& Correction)}
-\label{sec:rw_drift_setup}
-To evaluate time-correlated error accumulation (Section~\ref{sec:random_walk_model}), we implement a dynamic simulator in which the robot state evolves as a random walk and the \gls{dt} uses a \gls{zoh} predictor. The protocol applies the K-ID tolerance gate each tick and only attempts verification when the drift exceeds $K$. A miss (collision) during verification prevents a correction and allows the drift to accumulate further, producing extended boundary breaches.
+The total decoder latency is modeled linearly as the product of the acceptance set cardinality $|\mathcal{A}_K|$ and the unit verification overhead $t_{ver}$. Crucially, this estimation assumes sequential execution—implying no parallelization or hardware acceleration—on the Digital Twin side. By adopting this serial processing assumption, we establish a conservative, worst-case baseline for performance evaluation. While parallel implementation strategies (e.g., SIMD instructions or GPU offloading) could further reduce processing time, demonstrating feasibility under strict serial constraints confirms the algorithm's fundamental efficiency even on resource-limited computing nodes.
 
-\subsection{Parameterization}
-Unless otherwise stated, the reported dynamic figures use a Gaussian step model $\delta_t\sim\mathcal{N}(0,\sigma_{step}^2)$ with $\sigma_{step}=2$ and a quantization resolution of $\Delta=1$ for the acceptance-set size proxy $|\mathcal{A}_K|\approx 2\lfloor K/\Delta\rfloor+1$. We sweep $K\in\{2,5,10,20\}$ and verifier sizes $n_{ver}\in\{8,12,16\}$ over 120{,}000 ticks per run with 10 replicates (base seed 42). For the physical danger metric, we set $D=15$ to visualize sustained unsafe operation within the simulated time horizon.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\linewidth,height=0.32\textheight,keepaspectratio]{figures/decoder_cost_multiline_annotated.png}
+    \captionsetup{skip=4pt}
+    \caption{Computational scalability analysis showing decoder latency as a function of quantization resolution $\Delta$. The red curve represents the ``Safe Harbor'' configuration ($R=30$). At the high-precision limit ($\Delta=0.01$), latency reaches a prohibitive 12.8 ms. However, at our selected operating point ($\Delta=0.1$, vertical dotted line), the latency drops to $\approx 1.3$ ms, balancing maximum physical coverage with real-time computational feasibility.}
+    \label{fig:decoder_scalability}
+\end{figure}
 
-\subsection{Reproducibility}
-The sweep and plot generation are implemented in the \texttt{experiments/} folder. The simulation writes a CSV, and the plotting script generates the thesis-ready figures in \texttt{thesis\_report/figures/plots/}:
-\begin{verbatim}
-python3 experiments/random_walk_drift_sweep.py \
-    --ticks 120000 --replicates 10 --seed 42 \
-    --step-dist gaussian --step-param 2.0 \
-    --value-resolution 1.0 --danger-threshold 15 \
-    --k 2 5 10 20 --nver 8 12 16 \
-    --out-csv experiments/results/random_walk_drift_sweep_gaussian_step2_D15.csv
+The results of this sensitivity sweep, illustrated in Figure~\ref{fig:decoder_scalability}, reveal a critical scalability bottleneck governed by the choice of resolution. As the quantization $\Delta$ becomes finer, the computational cost grows hyperbolically, a trend that is most pronounced for the large-tolerance ``Safe Harbor'' configuration ($R=30$, depicted by the red curve). When applying a soft real-time constraint of approximately 1 ms, the data demonstrates that a high-precision setting of $\Delta=0.01$ is operationally infeasible; it drives the decoder latency to 12.8 ms, violating the control budget by an order of magnitude.
 
-python3 experiments/plot_random_walk_drift_sweep.py \
-    --csv experiments/results/random_walk_drift_sweep_gaussian_step2_D15.csv \
-    --out-dir thesis_report/figures/plots \
-    --name-suffix step2_D15 \
-    --demo --demo-ticks 2500 --demo-seed 125 \
-    --demo-step-dist gaussian --demo-step-param 2.0 \
-    --demo-k 10 --demo-danger 15 --demo-nver-a 16 --demo-nver-b 8
-\end{verbatim}
+In contrast, relaxing the resolution to $\Delta=0.1$ drastically reduces the computational burden. At this operating point, the latency for the worst-case $R=30$ scenario drops to approximately 1.3 ms. Although this marginally exceeds the soft target, it remains within a manageable envelope for real-time systems, whereas smaller safety radii ($R=2, 10$) perform well below 0.5 ms. Consequently, we select $\Delta=0.1$ as the system's fixed operating resolution. This choice represents the engineering limit of precision, providing the finest granularity that permits full ``Safe Harbor'' coverage without causing a computational breakdown in the Digital Twin.
 
-\noindent To quantify the decoder-side compute footprint of K-ID and to summarize the full $(K,n_{ver})$ grid, we generate additional derived plots from the static sweep CSVs:
-\begin{verbatim}
-python3 experiments/plot_kid_decoder_cost.py \
-    --csv experiments/results/kid_sweep_gaussian_both_ndata4001.csv \
-    --system sha256_trunc \
-    --out thesis_report/figures/plots/kid_decoder_cost_gaussian_sha256.png
+\subsection{System Configuration and Parameter Sweep}
+\label{subsec:param_config}
+The simulation assumes a payload ($n_{data} = 4001$ bits) transmitted over a 1 Mbps link. The quantization resolution is fixed at $\Delta = 0.1$ for the primary evaluation.
 
-python3 experiments/plot_kid_heatmaps.py \
-    --csv experiments/results/kid_sweep_gaussian_both_ndata4001.csv \
-    --system sha256_trunc \
-    --title "Gaussian (n_data=4001)" \
-    --out thesis_report/figures/plots/kid_heatmap_gaussian_sha256.png
+Instead of sweeping the abstract integer tolerance $K$, we sweep the Physical Tolerance Radius $R$ to represent concrete safety requirements. The parameter grid is defined as:
+\begin{equation}
+    R \in \{2, 5, 10, 20, 30\} \quad \text{(Physical Units)}
+\end{equation}
+The corresponding integer tolerance steps for the K-ID algorithm are derived dynamically as $K = \lceil R / \Delta \rceil$. For the baseline $\Delta=0.1$, this results in an effective $K$ sweep of $\{20, 50, 100, 200, 300\}$.
 
-python3 experiments/plot_kid_heatmaps.py \
-    --csv experiments/results/kid_sweep_uniform_both_ndata4001.csv \
-    --system sha256_trunc \
-    --title "Uniform (n_data=4001)" \
-    --out thesis_report/figures/plots/kid_heatmap_uniform_sha256.png
+The inclusion of $R=30$ is motivated by the variance-matched Uniform noise boundary $a \approx 27.71$. In this setting, $R=30$ constitutes a ``Safe Harbor'' configuration ($R>a$), which should eliminate unsafe events under the bounded model. In contrast, for the Gaussian model with unbounded support, the same radius ($R=30 \approx 1.875\sigma$) is expected to retain a non-zero tail probability of excursions beyond the tolerance. This bounded-vs.-unbounded contrast is used explicitly in Chapter~\ref{ch:results}.
 
-python3 experiments/plot_kid_resolution_sensitivity.py \
-    --system sha256_trunc --error gaussian --robot-std 12 \
-    --nver 8 12 16 --k 2 5 10 20 --delta 1 0.1 0.01 \
-    --out thesis_report/figures/plots/kid_delta_sensitivity_gaussian_sha256.png
-\end{verbatim}
+\subsection{Visualization Methodology}
+To comprehensively analyze the trade-off space, we employ a dual visualization strategy combining parameter grid heatmaps with Pareto efficiency analysis. 
 
-\noindent For a survival-style view of transmission intervals in the dynamic drift model, we export inter-transmission times (IFT) and plot empirical CDFs:
-\begin{verbatim}
-python3 experiments/random_walk_drift_sweep.py \
-    --ticks 120000 --replicates 10 --seed 42 \
-    --step-dist gaussian --step-param 2.0 \
-    --value-resolution 1.0 --danger-threshold 15 \
-    --k 2 5 10 20 --nver 8 12 16 \
-    --out-csv experiments/results/random_walk_drift_sweep_gaussian_step2_D15.csv \
-    --out-ift-csv experiments/results/random_walk_ift_gaussian_step2_D15.csv
+First, the raw simulation results are mapped onto a two-dimensional grid defined by the verifier length $n_{ver}$ and the physical tolerance radius $R$. Within each grid cell $(R, n_{ver})$, we visualize two distinct scalar fields: the empirical speedup factor, displayed on a linear color scale to highlight proportional bandwidth savings, and the overall risk probability $P(\mathrm{unsafe}\cap\mathrm{accept})$, displayed on a logarithmic scale to differentiate between rare safety events and high-probability failures. Numeric values are explicitly annotated within each cell to facilitate precise quantitative comparison. 
 
-python3 experiments/plot_random_walk_ift_cdf.py \
-    --mode by_nver \
-    --ift-csv experiments/results/random_walk_ift_gaussian_step2_D15_K*_nver*.csv \
-    --out thesis_report/figures/plots/random_walk_drift_gaussian_step2_D15_ift_cdf.png
-\end{verbatim}
+Second, to identify the optimal design configurations, we project these grid points onto a unified Risk-vs-Speedup scatter plot. By analyzing the distribution of performance metrics, we extract the Pareto Frontier—the set of non-dominated configurations where no other parameter combination yields a higher speedup for the same or lower level of risk. This frontier visually demarcates the theoretical efficiency limit of the K-ID protocol, thereby guiding the selection of the ``sweet spot'' parameters that maximize compression efficiency while satisfying strict safety constraints.
+
+\section{Implementation and Experimental Design}
+\label{sec:implementation_design}
+
+To rigorously evaluate the K-ID protocol under dynamic conditions, we developed a discrete-time simulation framework comprising three distinct modules: a stochastic robot agent, a bandwidth-constrained channel, and a Digital Twin (DT) receiver. This section details the modeling choices, the protocol logic implementation, and the rationale behind the parameter configurations used to generate the subsequent results.
+
+\subsection{Dynamic Error Evolution and Protocol Logic}
+Unlike static error checks, dynamic evaluation requires modeling the time-correlated accumulation of drift. We implement the robot's state evolution $S_t$ as a standard diffusive process, specifically a Gaussian Random Walk defined by $S_t = S_{t-1} + \delta_t$, where the increment $\delta_t$ follows a normal distribution $\mathcal{N}(0, \sigma_{step}^2)$. For all experiments, we standardize on a unit step deviation ($\sigma_{step}=1.0$). This choice avoids arbitrary parameter tuning, as it represents a canonical diffusion process where the variance of the uncorrected state grows linearly with time, providing a robust and reproducible challenge for the synchronization protocol.
+
+The K-ID protocol is implemented as a strict guardrail mechanism superimposed on this physical state evolution. The decision logic at each time tick proceeds sequentially. First, the system performs a tolerance check by calculating the absolute deviation $E_t = |S_t - \hat{S}_{t-1}|$ between the true state and the DT's estimate. If this deviation remains within the radius $R$, the protocol enforces silence to suppress bandwidth usage. Conversely, when the deviation exceeds the tolerance ($E_t > R$), a verification event is triggered. To simulate the cryptographic behavior efficiently over millions of simulation ticks, we abstract the hash function using a probabilistic collision model. Rather than computing raw SHA-256 hashes at every step, the verification result is modeled as a Bernoulli trial where the probability of a ``safety miss'' (collision) is calculated dynamically based on the acceptance set size ratio $|\mathcal{A}_K|/2^{n_{ver}}$. This abstraction decouples the logical correctness of the protocol from the specific choice of hash function, focusing the analysis on the theoretical entropy bounds.
+
+\subsection{Experimental Strategy: Stress Test and Parameter Sweep}
+Our evaluation strategy consists of two complementary phases: a targeted stress test for visualization and a comprehensive parameter sweep for statistical quantification.
+
+For the qualitative Stress Test, we explicitly designed a configuration intended to induce and visualize rare failure modes within an observable simulation window. We strictly adhere to the optimal quantization resolution ($\Delta=0.1$) derived from the static analysis. This is paired with an intermediate physical tolerance ($R=10$) and, crucially, a 12-bit verifier ($n_{ver}=12$). With an acceptance set of $|\mathcal{A}_K| \approx 201$, a 12-bit space yields a collision probability of approximately $4.9\%$. This intentionally elevated risk level serves as a heuristic device to amplify the frequency of safety misses, allowing us to capture the anatomy of a failure event---specifically, a drift break-out masked by a hash collision---without requiring computationally prohibitive simulation durations.
+
+For the quantitative Parameter Sweep, we expand the evaluation to map the broader risk landscape. While fixing the drift dynamics ($\sigma=1.0, \Delta=0.1$), we systematically vary the tolerance radius $K \in \{2, 5, 10, 20\}$ and the verifier length $n_{ver} \in \{8, 12, 16\}$. This grid search allows us to decouple the ``masking effect'' of physical tolerance from the ``collision risk'' of cryptographic verification, providing the statistical basis for the trade-off analysis.
+
+\subsection{Metrics for Dynamic Safety}
+To quantify the trade-off between efficiency and risk, we define three primary metrics for the dynamic experiments. The first is the Inter-Fallback Time (IFT), defined as the duration between two successful correction updates. A larger mean IFT indicates higher channel efficiency and reduced network contention, effectively measuring the protocol's ability to compress traffic. 
+
+To measure safety risks, we define Breach Duration ($L_K$) as the number of consecutive ticks during which the system remains in an unsafe state ($|S_t - \hat{S}_t| > K$) due to hash collisions. This measures the temporal persistence of safety violations. Complementing this is the Maximum Drift, which records the peak absolute error reached during a simulation run. While Breach Duration quantifies how long the system is blind, Maximum Drift quantifies the worst-case physical magnitude of the error, serving as a proxy for potential physical damage in a real-world control scenario.

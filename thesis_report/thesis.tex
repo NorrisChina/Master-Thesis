@@ -61,7 +61,7 @@
 %	Table of tables
 % ===============================================
 \listoftables
-\clearpage
+% Removed explicit page break to avoid an empty page between LoT and Acronyms
 % ===============================================
 %	Table of listings
 % ===============================================
@@ -70,7 +70,11 @@
 %	Table of acronyms
 % ===============================================
 % \glsaddall
+% Avoid a forced right-hand start for this front-matter chapter
+\begingroup
+\KOMAoptions{open=any}
 \printacronyms[style=acrotabularx,title={Acronyms}]
+\endgroup
 \clearpage
 
 \pagenumbering{arabic} % arabic numbering for the PDF starting with 1
