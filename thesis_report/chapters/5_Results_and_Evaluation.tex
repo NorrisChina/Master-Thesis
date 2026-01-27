@@ -2,7 +2,7 @@
 \label{ch:results}
 \label{sec:results_and_evaluation}
 
-This chapter presents the empirical evaluation of the proposed \gls{id}-based synchronization protocols. We first characterize the system's fundamental parameters—computational overhead and collision probability—to calibrate the theoretical models. We then perform a sensitivity analysis to identify the bandwidth and prediction regimes where \gls{id} offers a latency advantage over traditional transmission. Next, we conduct a comprehensive parameter sweep of the \gls{kid} protocol, quantifying the safety-performance trade-offs and identifying Pareto-optimal configurations for deployment. We conclude with a dynamic evaluation based on the random walk drift model to highlight time-correlated risk accumulation.
+This chapter presents the empirical evaluation of the proposed \gls{id}-based synchronization protocols. We first characterize the system's fundamental parameters, computational overhead and collision probability, to calibrate the theoretical models. We then perform a sensitivity analysis to identify the bandwidth and prediction regimes where \gls{id} offers a latency advantage over traditional transmission. Next, we conduct a comprehensive parameter sweep of the \gls{kid} protocol, quantifying the safety-performance trade-offs and identifying Pareto-optimal configurations for deployment. We conclude with a dynamic evaluation based on the random walk drift model to highlight time-correlated risk accumulation.
 
 % ==================================================================================
 % 5.1 参数验证
@@ -47,7 +47,7 @@ Table~\ref{tab:pmiss_results} presents the theoretical collision probabilities c
 
 \begin{table}[!htbp]
     \centering
-    \caption{Theoretical collision probability $p_{miss}$. \gls{rsid} fails at short blocklengths ($n_{ver}=4$) due to field saturation ($p_{miss}=1.0$), whereas \gls{sha} maintains robust collision resistance.}
+    \caption{Theoretical collision probability $p_{miss}$. Under the concatenated RS-ID (RS2ID) model, the dominant bound scales as $p_{miss} \approx 2^{-n_{ver}}$ (independent of payload size), matching the truncation scaling of \gls{sha}.}
     \label{tab:pmiss_results}
     \begin{tabular}{lrr}
         \toprule
@@ -56,12 +56,12 @@ Table~\ref{tab:pmiss_results} presents the theoretical collision probabilities c
         \textbf{System} & \textbf{4 bits} & \textbf{16 bits} \\
         \midrule
         \textbf{SHA-256} (Random Oracle) & $6.25 \times 10^{-2}$ & $1.53 \times 10^{-5}$ \\
-        \textbf{RS-ID} (Schwartz-Zippel) & $1.00$ \textit{(Saturated)} & $9.16 \times 10^{-5}$ \\
+        \textbf{RS-ID} (Concatenated bound) & $6.25 \times 10^{-2}$ & $1.53 \times 10^{-5}$ \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-One critical finding is the failure of \gls{rsid} at $n_{ver}=4$. With a field size of only $q=16$, the polynomial degree $d$ for a 96-bit payload exceeds the field size ($d \ge q$), and the bound saturates at $p_{miss}=1.0$. This confirms that algebraic codes require a minimum field headroom to function, establishing a hard lower bound on $n_{ver}$ that does not exist for cryptographic hashes.
+    For RS2ID, the verifier consists of a small number of symbols over a field of size $q = 2^{n_{ver}}$; the dominant miss event is a coincidental symbol agreement, yielding the simple scaling $p_{miss} \approx 1/q = 2^{-n_{ver}}$. Importantly, this bound is not a function of payload size under the concatenated construction, so it does not exhibit the short-blocklength field-saturation behavior of the single-polynomial RS-ID model.
 
 % ==================================================================================
 % 5.2 End-to-End Latency
@@ -195,7 +195,7 @@ A critical insight from the Uniform model (Figure~\ref{fig:kid_heatmap_uniform})
 
 Conversely, the rightmost column ($n_{ver}=16$ for radii $R < 20$) achieves safety through probabilistic immunity. In these configurations, the robot frequently exceeds the tighter tolerances, triggering continuous verification checks as indicated by the significantly lower speedups. However, despite the high frequency of checks, the 16-bit hash provides sufficient entropy to suppress collision probabilities below the simulation detection threshold, yielding an empirical risk of zero.
 
-Between these two extremes lies a transitional ``danger zone'' around $R=20$ when paired with weak verifiers. In this region, the tolerance is large enough to dilute the acceptance set $\mathcal{A}_K$---thereby increasing the collision probability per check---but too small to contain the noise boundary. Consequently, the system suffers from the worst of both worlds: frequent verification triggers and a high likelihood of collision ($> 10^{-3}$), unless compensated by stronger verifiers ($n_{ver} \ge 12$).
+Between these two extremes lies a transitional ``danger zone'' around $R=20$ when paired with weak verifiers. In this region, the tolerance is large enough to dilute the acceptance set $\mathcal{A}_K$, thereby increasing the collision probability per check, but too small to contain the noise boundary. Consequently, the system suffers from the worst of both worlds: frequent verification triggers and a high likelihood of collision ($> 10^{-3}$), unless compensated by stronger verifiers ($n_{ver} \ge 12$).
 
 The Gaussian model (Figure~\ref{fig:kid_heatmap_gauss}) presents a stricter challenge due to the distribution's unbounded tails. Even at the maximum tolerance $R=30$, the ``Safe Harbor'' is not absolute; residual risks in the range of $10^{-4}$ persist. This confirms that for unbounded noise processes, reliance on physical margins alone is insufficient. Instead, safety must be actively enforced by increasing the verifier length. The data demonstrates that increasing $n_{ver}$ from 4 to 16 bits effectively suppresses the overall risk by orders of magnitude across all tolerance levels, with only a minor penalty in speedup due to the increased packet overhead.
 
@@ -264,7 +264,7 @@ Beyond the single trace, we quantify the statistical risk profile using the para
 
 Figure~\ref{fig:rw_metrics}(a) reveals the non-linear nature of dynamic risk. For weak verifiers ($n_{ver}=8$, blue line), the breach duration exhibits a sharp jump as the tolerance $K$ increases. This indicates that failures are not independent events; a hash collision at step $t$ increases the likelihood of a collision at step $t+1$ due to the high correlation of the drifting state. Consequently, a single miss often cascades into a persistent blind spot. In contrast, the $n_{ver} \ge 12$ configurations (orange and green lines) effectively suppress these consecutive failures, maintaining the breach duration near 1.0. This validates that while $n_{ver}=12$ carries a marginal risk of single-step misses (as seen in the trace), it successfully prevents the catastrophic long-duration failures observed with 8-bit verifiers.
 
-Figure~\ref{fig:rw_metrics}(b) illustrates the physical magnitude of these failures. We observe a linear relationship between the tolerance $K$ and the maximum peak drift. This confirms that while increasing $K$ improves bandwidth efficiency (masking), it raises the stakes: when a failure eventually occurs—whether due to a miss or transmission latency—the accumulated error is proportional to the masking radius. Thus, the choice of $K$ represents a direct trade-off between communication frequency and the worst-case physical deviation.
+Figure~\ref{fig:rw_metrics}(b) illustrates the physical magnitude of these failures. We observe a linear relationship between the tolerance $K$ and the maximum peak drift. This confirms that while increasing $K$ improves bandwidth efficiency (masking), it raises the stakes: when a failure eventually occurs (whether due to a miss or transmission latency), the accumulated error is proportional to the masking radius. Thus, the choice of $K$ represents a direct trade-off between communication frequency and the worst-case physical deviation.
 
 \begin{figure*}[!htbp]
     \centering
