@@ -2,7 +2,7 @@
 \label{ch:results}
 \label{sec:results_and_evaluation}
 
-This chapter presents the empirical evaluation of the proposed \gls{id}-based synchronization protocols. We first characterize the system's fundamental parameters, computational overhead and collision probability, to calibrate the theoretical models. We then perform a sensitivity analysis to identify the bandwidth and prediction regimes where \gls{id} offers a latency advantage over traditional transmission. Next, we conduct a comprehensive parameter sweep of the \gls{kid} protocol, quantifying the safety-performance trade-offs and identifying Pareto-optimal configurations for deployment. We conclude with a dynamic evaluation based on the random walk drift model to highlight time-correlated risk accumulation.
+This chapter presents the empirical evaluation of the proposed \gls{id}-based synchronization protocols. It first characterizes the system's fundamental parameters to define the bandwidth and state synchronization boundaries where \gls{id} yields a latency advantage over traditional transmission. Next, it reports a parameter sweep of the \gls{kid} protocol, quantifying the safety-performance trade-offs and identifying Pareto-optimal configurations for deployment. Finally, it evaluates a time-correlated random-walk drift model to highlight risk accumulation in continuous operation.
 
 % ==================================================================================
 % 5.1 参数验证
@@ -10,58 +10,64 @@ This chapter presents the empirical evaluation of the proposed \gls{id}-based sy
 \section{Empirical Parameter Verification}
 \label{sec:empirical_params}
 
-To instantiate the latency models derived in Chapter~\ref{ch:design_methodology}, we first experimentally verify the computational cost ($t_{ver}$) and the theoretical reliability limits ($p_{miss}$) of the encoding mechanisms.
+To instantiate the latency models derived in Chapter~\ref{ch:design_methodology}, an experimental characterization of the computational cost ($t_{ver}$) and the theoretical reliability limits of the encoding mechanisms was performed.
 
-\subsection{Encoding Latency (\texorpdfstring{$t_{ver}$}{t\_ver})}
-The encoding time $t_{ver}$ sets the irreducible latency floor for \gls{id}, even when bandwidth is effectively infinite. We measured $t_{ver}$ over 100,000 operations for both \gls{sha} and \gls{rsid}. The results, summarized in Table~\ref{tab:tver_results}, reveal a distinct structural divergence between the two approaches.
+\subsection{Encoding Latency Analysis}
+
+The computational overhead was evaluated through a parameter sweep over verifier length $n_{ver} \in \{4,8,12,16\}$ and payload size $n_{data} \in \{96, 4001\}$ bits in Figure~\ref{fig:tver_sweep_summary}. Each data point represents the average encoding time over 1000 trials, measured on a MacBook Air (2020) host system, equipped with an Apple M1 chip (8-core CPU) and 8 GB of unified memory. This platform operates on the ARMv8 architecture. All measurements were recorded under macOS 26.2 using both the optimized and reference backends for \gls{sha}-256, and the reference implementation for \gls{rsid}.
+
+\begin{figure}[!tbp]
+    \centering
+    \includegraphics[width=0.55\textwidth]{figures/plots/tver_sweep_summary.png}
+    \caption{Comparative overhead analysis of \gls{id} mechanisms. For \gls{sha}-256, results are reported for both the optimized hashlib~\cite{9789759} and the reference high-level backend.}
+    \label{fig:tver_sweep_summary}
+\end{figure}
 
 \FloatBarrier
 
+The measurements show that \gls{sha}-256 maintains a nearly constant latency profile across all verifier lengths for a fixed payload size. This behavior is consistent with the Merkle-Damgård construction of the \gls{sha}-256 algorithm, which processes data in fixed 512-bit blocks. As the number of iterations depends solely on the input data volume and padding rather than the final truncation length, the computational burden remains invariant to $n_{ver}$. 
+
+In contrast, \gls{rsid} shows improved performance as the verifier length increases. This trend is substantiated by a detailed processing analysis presented in Table~\ref{tab:encoding_latency_breakdown}. The computational cost of \gls{rsid} is governed by the total number of finite field symbols $k$ required to represent the payload. According to the \glsentryshort{rsid} construction principles, each symbol's capacity scales with $n_{ver}$, meaning that for a fixed payload size, an increase in verifier length leads to a substantial reduction in the total symbol count~\cite{9789759}. 
+
+As evidenced by the measurements for a 4001-bit payload, the symbol count $k$ decreases from 501 to 126 as $n_{ver}$ scales from 4 to 16 bits. This reduction in the total number of operations effectively offsets the marginal increase in the computational complexity per symbol associated with larger Galois Fields. Consequently, for algebraic identification, higher precision configurations not only enhance reliability but also yield a net gain in execution efficiency.
+
 \begin{table}[!htbp]
     \centering
-    \caption{Measured verification time $t_{ver}$ (mean $\pm$ 95\% CI half-width). \gls{sha} shows stable performance for fixed payloads, while \gls{rsid} is sensitive to the verifier length due to field arithmetic complexity.}
-    \label{tab:tver_results}
-    \begin{tabular}{lrr}
+    \small
+    \setlength{\tabcolsep}{5pt}
+    \caption{Breakdown of processing costs for block-based (\gls{sha}-256) and symbol-based (\gls{rsid}) encoding.}
+    \label{tab:encoding_latency_breakdown}
+    \begin{tabular}{cccccccc}
         \toprule
-        & \multicolumn{2}{c}{\textbf{Verifier Length ($n_{ver}$)}} \\
-        \cmidrule(lr){2-3}
-        \textbf{System (Payload)} & \textbf{4 bits} & \textbf{16 bits} \\
+        & & \multicolumn{3}{c}{\gls{sha}-256} & \multicolumn{3}{c}{\gls{rsid}} \\
+        \cmidrule(lr){3-5} \cmidrule(lr){6-8}
+        $n_{ver}$ & Payload & $t_{ver}$ ($\mu$s) & Per-blk ($\mu$s) & Blocks & $t_{ver}$ ($\mu$s) & Per-sym ($\mu$s) & \textbf{$k$} \\
         \midrule
-        \multicolumn{3}{l}{\textit{Cryptographic (SHA-256)}} \\
-        \hspace{1em} 96 bits & $2.13 \pm 0.04\,\mu s$ & $2.24 \pm 0.01\,\mu s$ \\
-        \hspace{1em} 4001 bits & $14.65 \pm 0.31\,\mu s$ & $15.41 \pm 0.09\,\mu s$ \\
-        \midrule
-        \multicolumn{3}{l}{\textit{Algebraic (RS-ID)}} \\
-        \hspace{1em} 96 bits & $14.55 \pm 0.39\,\mu s$ & $3.79 \pm 0.02\,\mu s$ \\
-        \hspace{1em} 4001 bits & $51.78 \pm 0.94\,\mu s$ & $38.57 \pm 0.36\,\mu s$ \\
+        4 & 96 & 2.06 & 2.06 & 1 & 2.96 & 0.247 & 12 \\
+        4 & 4001 & 14.77 & 1.85 & 8 & 41.21 & 0.082 & 501 \\
+        8 & 96 & 2.10 & 2.10 & 1 & 2.61 & 0.435 & 6 \\
+        8 & 4001 & 14.90 & 1.86 & 8 & 24.87 & 0.099 & 251 \\
+        12 & 96 & 2.17 & 2.17 & 1 & 2.36 & 0.589 & 4 \\
+        12 & 4001 & 14.97 & 1.87 & 8 & 17.00 & 0.102 & 167 \\
+        16 & 96 & 2.17 & 2.17 & 1 & 2.23 & 0.744 & 3 \\
+        16 & 4001 & 14.92 & 1.87 & 8 & 13.44 & 0.107 & 126 \\
         \bottomrule
     \end{tabular}
 \end{table}
 
 \FloatBarrier
 
-\gls{sha} demonstrates robust stability; its runtime is dominated by the input block size and is effectively invariant to the output truncation length ($n_{ver}$). In contrast, \gls{rsid} displays a counter-intuitive behavior where increasing the verifier length decreases latency (e.g., $14.55 \to 3.79\,\mu s$). This is an artifact of the polynomial construction: a larger $n_{ver}$ allows more bits to be packed into each field coefficient, reducing the total number of coefficients ($k$) required to represent the payload.
+A performance gap is observed between different implementation backends of \gls{sha}-256. The optimized implementation, which leverages the OpenSSL engine and direct byte-stream processing, achieves lower latency compared to the reference backend. In high-level languages such as Python, the reference implementation is subject to substantial serialization overhead when converting integer lists into the internal C structures required for hashing. This data handling cost dominates the total latency for larger payloads, suggesting that the efficiency of data passing between software layers can be as important as the algorithmic complexity itself.
 
-\subsection{Theoretical Reliability Limits}
-Table~\ref{tab:pmiss_results} presents the theoretical collision probabilities calculated from the bounds in Chapter~\ref{ch:design_methodology}.
+\subsection{Theoretical Reliability Characterization}
+\label{sec:reliability_limits}
 
-\begin{table}[!htbp]
-    \centering
-    \caption{Theoretical collision probability $p_{miss}$. Under the concatenated RS-ID (RS2ID) model, the dominant bound scales as $p_{miss} \approx 2^{-n_{ver}}$ (independent of payload size), matching the truncation scaling of \gls{sha}.}
-    \label{tab:pmiss_results}
-    \begin{tabular}{lrr}
-        \toprule
-        & \multicolumn{2}{c}{\textbf{Verifier Length ($n_{ver}$)}} \\
-        \cmidrule(lr){2-3}
-        \textbf{System} & \textbf{4 bits} & \textbf{16 bits} \\
-        \midrule
-        \textbf{SHA-256} (Random Oracle) & $6.25 \times 10^{-2}$ & $1.53 \times 10^{-5}$ \\
-        \textbf{RS-ID} (Concatenated bound) & $6.25 \times 10^{-2}$ & $1.53 \times 10^{-5}$ \\
-        \bottomrule
-    \end{tabular}
-\end{table}
+Following the theoretical framework established in Section~\ref{sec:encoding_mechanisms}, we assume a unified reliability model for both encoding mechanisms. As derived from the distance properties of \gls{rsid} and the statistical behavior of \gls{sha}-256, the miss probability is structurally governed by the verifier length $n_{ver}$. Consequently, we apply the scaling law defined in Equation~\eqref{eq:pmiss_law} to characterize the expected collision rates:
+\begin{equation}
+    p_{miss} \approx \frac{K}{2^{n_{ver}}}, \quad K=1
+\end{equation}
 
-    For RS2ID, the verifier consists of a small number of symbols over a field of size $q = 2^{n_{ver}}$; the dominant miss event is a coincidental symbol agreement, yielding the simple scaling $p_{miss} \approx 1/q = 2^{-n_{ver}}$. Importantly, this bound is not a function of payload size under the concatenated construction, so it does not exhibit the short-blocklength field-saturation behavior of the single-polynomial RS-ID model.
+This theoretical bound yields a collision probability of approximately $6.25 \times 10^{-2}$ for $n_{ver}=4$ and $1.53 \times 10^{-5}$ for $n_{ver}=16$. 
 
 % ==================================================================================
 % 5.2 End-to-End Latency
@@ -69,9 +75,9 @@ Table~\ref{tab:pmiss_results} presents the theoretical collision probabilities c
 \section{End-to-End Latency Evaluation}
 \label{sec:latency_eval}
 
-We now integrate the measured parameters into the hybrid latency model to evaluate system performance under varying network constraints.
+The measured parameters are integrated into the hybrid latency model to evaluate system performance under varying network constraints.
 
-\subsection{The Break-Even Analysis (Bandwidth Sensitivity)}
+\subsection{Bandwidth Sensitivity Analysis}
 Figure~\ref{fig:latency_bandwidth} analyzes the expected latency across a bandwidth spectrum from 10 kbps to 10 Mbps.
 
 \FloatBarrier
@@ -91,15 +97,18 @@ Figure~\ref{fig:latency_bandwidth} analyzes the expected latency across a bandwi
         \caption{Large payload (4001 bits): \gls{id} advantage persists $> 10$ Mbps.}
         \label{fig:latency_bw_4001}
     \end{subfigure}
-    \caption{End-to-end latency vs. channel bandwidth. The plots reveal the break-even point where the computational cost of \gls{id} ($t_{ver}$) intersects with the transmission cost of the baseline. In the low-bandwidth regime ($B < 1$ Mbps), \gls{id} offers up to 10$\times$ latency reduction.}
+    \caption{End-to-end latency vs. channel bandwidth ($p_{desync}=0.1$). The plots reveal the break-even point where the computational cost of \gls{id} ($t_{ver}$) intersects with the transmission cost of the baseline. In the low-bandwidth regime ($B < 1$ Mbps), \gls{id} offers up to 10$\times$ latency reduction.}
     \label{fig:latency_bandwidth}
 \end{figure*}
 
+\FloatBarrier
+
 The results illustrate the fundamental trade-off between computation and communication. In the transmission-bound regime ($B < 1$ Mbps), latency is dominated by the physical transmission time ($T_{trans}$), and \gls{id} outperforms the baseline by compressing the required transmission from $n_{data}$ to $n_{ver}$. In the computation-bound regime ($B > 10$ Mbps), transmission becomes negligible and the latency floor is set by the encoding time $t_{ver}$; since the traditional scheme has zero encoding overhead, it eventually becomes faster. For large payloads (Figure~\ref{fig:latency_bw_4001}), the break-even point shifts to higher bandwidths, indicating that \gls{id}-based synchronization becomes increasingly valuable as data complexity grows.
 
-\subsection{Operational Bounds (Prediction Sensitivity)}
-Figure~\ref{fig:latency_desync} examines the impact of the \gls{dt}'s prediction quality ($p_{desync}$) at a fixed bandwidth of 5 Mbps.
-The intersection points in Figure~\ref{fig:latency_desync} define the viability region of the protocol. For standard telemetry (96~bits), \gls{id} requires a prediction accuracy better than 20\% ($p_{desync} < 0.8$) to yield net benefits. This indicates that \gls{id} remains practical in dynamic environments, provided the \gls{dt}'s kinematic model remains sufficiently coupled to reality.
+\subsection{Perception Sensitivity Analysis}
+\label{sec:operational_bounds}
+
+Figure~\ref{fig:latency_desync} illustrates the system latency as a function of the state desynchronization probability ($p_{desync}$), measured at a fixed bandwidth of 5 Mbps. In this context, $p_{desync}$ represents the frequency at which the robot's local sensor perception deviates from the authoritative state maintained by the \gls{dt}. Since the proposed protocol only triggers a full-state fallback transmission upon a verification failure, its average latency is tied to this perceptual consistency.
 
 \FloatBarrier
 
@@ -118,121 +127,144 @@ The intersection points in Figure~\ref{fig:latency_desync} define the viability 
         \caption{Large Payload (4001 bits)}
         \label{fig:latency_desync_4001}
     \end{subfigure}
-    \caption{Latency sensitivity to prediction error. \gls{id} relies on accurate predictions. For small payloads (a), the system must maintain $p_{desync} < 0.8$ to outperform the baseline. For large payloads (b), the transmission savings are so significant that \gls{id} remains superior even with poor predictions.}
+    \caption{Latency sensitivity to prediction error ($B=5$ Mbps). The intersection with the traditional baseline indicates the $p_{desync}$ range in which \gls{id}-based synchronization yields lower expected latency. For 4001-bit payloads (b) the cross-over shifts closer to $p_{desync}=1$ compared to the 96-bit payloads (a).}
     \label{fig:latency_desync}
 \end{figure*}
 
 \FloatBarrier
 
-\subsection{\texorpdfstring{\acrshort{lidar}}{LiDAR}-Scale Payload Scalability}
-\label{sec:lidar_scale_tver}
-The baseline measurements above use small telemetry payloads (96 bits and 4001 bits). For high-dimensional sensors such as \gls{lidar}, the payload size can grow by orders of magnitude. We therefore extend the $t_{ver}$ benchmark to payloads up to 5~MiB (Section~\ref{sec:lidar_scalability_params}).
+The intersection points between the \gls{id}-based curves and the traditional transmission baseline delineate the operational viability of the protocol. This performance boundary is primarily governed by the state desynchronization probability $p_{desync}$, which determines the frequency of fallback events. When the system operates in a high-consistency regime (low $p_{desync}$), \gls{id}-based synchronization yields significant latency reductions by substituting large payload transmissions with compact verifiers. However, as $p_{desync}$ approaches unity, the cumulative cost of frequent fallback transmissions and the fixed encoding overhead $t_{ver}$ renders the traditional scheme more efficient.
 
-\input{tables/generated/tver_lidar_scalability_ci_nver16}
+The relative advantage of the encoding mechanisms is further influenced by their respective computational profiles. Across the evaluated configurations, the higher encoding cost associated with \gls{rsid} results in consistently elevated latency curves compared to \gls{sha}-256 for identical $(n_{ver}, n_{data})$ pairs. This computational penalty interacts dynamically with the payload size; for small telemetry payloads (96 bits), the increased bit-budget for larger verifiers can outweigh the algebraic gains. Conversely, for larger sensor payloads (4001 bits), the reduction in \gls{rsid} symbol count becomes the dominant factor, allowing the protocol to benefit from larger $n_{ver}$ despite the increased tag length.
 
-Figure~\ref{fig:tver_scaling} (visualized from Table~\ref{tab:tver_lidar_scalability}) highlights a clear crossover in computational efficiency governed by payload size. For small payloads ($< 100$~B), \gls{rsid} exhibits a slight performance edge (e.g., $1.81\,\mu s$ vs. $2.06\,\mu s$ at 96~bits), consistent with a small fixed overhead for polynomial evaluation while \gls{sha} incurs a startup cost due to message padding and the fixed compression routine. For large payloads ($> 1$~KiB), \gls{sha} significantly outperforms \gls{rsid} (e.g., about $2\times$ faster at 5~MiB). While both approaches scale linearly in the number of processed bytes ($O(N)$), \gls{sha} relies primarily on bitwise operations that are heavily optimized on modern CPUs, whereas the current \gls{rsid} implementation is dominated by memory-heavy finite-field multiplication table lookups.
+Overall, the results suggest that the latency advantage of \gls{id}-based synchronization depends on payload complexity: at low payloads it is more sensitive to encoding overhead, whereas at high payloads it is dominated by transmission savings and becomes less sensitive to moderate increases in $p_{desync}$.
 
-Overall, for high-throughput sensor payloads (\gls{lidar}/video), cryptographic hashing provides superior scalability in this prototype implementation. For distinct control signals and small telemetry payloads, both methods remain computationally negligible (on the order of a few microseconds).
+\subsection{Payload Scalability Analysis}
+\label{sec:payload_scalability}
 
-\begin{figure}[!t]
-    \centering
-    \includegraphics[width=0.85\textwidth]{figures/plots/tver_scalability_nver16_ci5.png}
-    \caption{$t_{ver}$ scalability vs. payload size at $n_{ver}=16$ (log-log). Error bars show 95\% CI half-width with relative CI controlled to $\leq 5\%$.}
-    \label{fig:tver_scaling}
-\end{figure}
-
-\FloatBarrier
-
-\subsection{Overall Latency vs. Payload Size (Fixed \texorpdfstring{$n_{ver}$}{n\_ver})}
-\label{sec:latency_vs_payload}
-To connect the scalability measurement to end-to-end performance, we evaluate the hybrid latency model at a fixed verifier size ($n_{ver}=16$), fixed bandwidth ($B=5$ Mbps), and $p_{desync}=0.1$, while varying the payload size from telemetry-scale to \gls{lidar}-scale. Figure~\ref{fig:latency_vs_payload_nver16} reports the resulting expected latency.
-
-As the compression ratio increases (fixed $n_{ver}$ while $n_{data}$ grows), the ordering between the two \gls{id} variants becomes consistent with the $t_{ver}$ scalability results in Figure~\ref{fig:tver_scaling}: the \gls{sha}-based scheme achieves lower end-to-end latency than \gls{rsid}. Intuitively, at fixed $n_{ver}$ and fixed $p_{desync}$, both schemes share essentially the same expected communication component (the verifier transmission on non-fallback ticks, and the same fallback transmission model); therefore, the gap between the curves in Figure~\ref{fig:latency_vs_payload_nver16} is dominated by the compute floor $t_{ver}$. Since \gls{sha} scales with a lower per-byte cost than the current \gls{rsid} implementation, it remains faster as $n_{data}$ increases.
-
-\FloatBarrier
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.9\textwidth]{figures/plots/latency_vs_ndata_nver16_96_4001_100KB_1MiB_5MiB.png}
-    \caption{Expected latency vs. payload size ($n_{ver}=16$, $B=5$ Mbps, $p_{desync}=0.1$). The ID-based schemes incur a compute floor ($t_{ver}$) but can reduce communication cost to $n_{ver}/B$ on non-fallback ticks.}
-    \label{fig:latency_vs_payload_nver16}
-\end{figure}
-
-% ==================================================================================
-% 5.3 K-ID Evaluation
-% ==================================================================================
-\section[K-ID: Quantifying the Safety-Performance Trade-off]{\gls{kid}: Quantifying the Safety-Performance Trade-off}
-\label{sec:kid_eval}
-
-Having established the baseline performance, we now evaluate the \gls{kid} extension, which introduces semantic tolerance ($R$) to filter benign deviations. We sweep the physical tolerance radius $R \in \{2, 5, 10, 20, 30\}$ and the verifier length $n_{ver} \in \{4, 8, 12, 16\}$ bits to map the design space.
-
-\subsection{Mechanism Analysis: The Tolerance-Verification Interaction}
-
-Figure~\ref{fig:kid_heatmaps} maps the full design space to decouple the roles of physical and cryptographic parameters. The heatmaps confirm a fundamental interplay: the physical radius $R$ establishes the performance ceiling, as indicated by the speedup metrics, while the verifier length $n_{ver}$ determines the residual safety floor.
-
-\begin{figure*}[!htbp]
-    \centering
-    \begin{subfigure}[t]{0.49\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{figures/plots/kid_heatmap_gaussian_sha256.png}
-        \caption{Gaussian model (SHA-256 truncation).}
-        \label{fig:kid_heatmap_gauss}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[t]{0.49\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{figures/plots/kid_heatmap_uniform_sha256.png}
-        \caption{Uniform model (SHA-256 truncation).}
-        \label{fig:kid_heatmap_uniform}
-    \end{subfigure}
-    \caption{Heatmap summary of the K-ID grid over $(R,n_{ver})$. The left panel in each figure shows speedup (linear scale); the right panel shows empirical overall risk $P(\mathrm{unsafe}\cap\mathrm{accept})$ (log-scaled). Cells marked with "0" indicate an empirical zero (no failures observed in simulation).}
-    \label{fig:kid_heatmaps}
-\end{figure*}
-
-\FloatBarrier
-
-A critical insight from the Uniform model (Figure~\ref{fig:kid_heatmap_uniform}) is the fundamental distinction between the two mechanisms that yield zero empirical risk. The top row of the heatmap ($R=30$) demonstrates safety through physical immunity. Since this tolerance encapsulates the theoretical noise boundary ($a \approx 27.71$), the system relies on passive physical margins. Verification events are suppressed simply because the robot rarely violates the tolerance, resulting in massive speedups exceeding $127\times$ and zero risk due to protocol silence.
-
-Conversely, the rightmost column ($n_{ver}=16$ for radii $R < 20$) achieves safety through probabilistic immunity. In these configurations, the robot frequently exceeds the tighter tolerances, triggering continuous verification checks as indicated by the significantly lower speedups. However, despite the high frequency of checks, the 16-bit hash provides sufficient entropy to suppress collision probabilities below the simulation detection threshold, yielding an empirical risk of zero.
-
-Between these two extremes lies a transitional ``danger zone'' around $R=20$ when paired with weak verifiers. In this region, the tolerance is large enough to dilute the acceptance set $\mathcal{A}_K$, thereby increasing the collision probability per check, but too small to contain the noise boundary. Consequently, the system suffers from the worst of both worlds: frequent verification triggers and a high likelihood of collision ($> 10^{-3}$), unless compensated by stronger verifiers ($n_{ver} \ge 12$).
-
-The Gaussian model (Figure~\ref{fig:kid_heatmap_gauss}) presents a stricter challenge due to the distribution's unbounded tails. Even at the maximum tolerance $R=30$, the ``Safe Harbor'' is not absolute; residual risks in the range of $10^{-4}$ persist. This confirms that for unbounded noise processes, reliance on physical margins alone is insufficient. Instead, safety must be actively enforced by increasing the verifier length. The data demonstrates that increasing $n_{ver}$ from 4 to 16 bits effectively suppresses the overall risk by orders of magnitude across all tolerance levels, with only a minor penalty in speedup due to the increased packet overhead.
-
-
-\subsection{Pareto Optimization for Deployment}
-
-To synthesize these multi-dimensional trade-offs into actionable design guidelines, we project the configuration grid onto a Speedup vs. Risk plane. Figure~\ref{fig:kid_pareto_final} visualizes the Pareto Frontier, connecting the non-dominated configurations that offer the maximum theoretical speedup for a given risk budget.
+To evaluate the scalability of the proposed mechanisms for high-dimensional sensor data, we characterized the end-to-end latency across a payload spectrum ranging from $10^2$ to $4 \times 10^3$ bits. This analysis, visualized in Figure~\ref{fig:latency_vs_ndata_backends_nver16}, assumes a fixed verifier length $n_{ver}=16$, a bandwidth of 5 Mbps, and a state desynchronization probability $p_{desync}=0.1$.
 
 \begin{figure}[!htbp]
     \centering
-    \begin{subfigure}[t]{0.95\textwidth}
+    \includegraphics[width=0.85\textwidth]{figures/plots/latency_vs_ndata_backends_nver16.png}
+    \caption{Expected end-to-end latency versus payload size. Evaluation at $n_{ver}=16$ ($B=5$ Mbps, $p_{desync}=0.1$) comparing \gls{rsid} and \gls{sha}-256. The linear scaling on the log-log plot illustrates the dominance of transmission time as $n_{data}$ increases.}
+    \label{fig:latency_vs_ndata_backends_nver16}
+\end{figure}
+
+\FloatBarrier
+
+The experimental results show that for all tested mechanisms, the expected latency $E[T]$ scales linearly with the payload size $n_{data}$ on a log-log scale. This linear relationship indicates that the transmission time, which is proportional to $n_{data}$ during fallback events, remains the dominant component of the total latency as the data volume increases. Specifically, at $n_{ver}=16$, the performance curves of \gls{rsid} and the reference high-level backend of \gls{sha}-256 are nearly identical. Both mechanisms exhibit an expected latency of approximately $8.5 \times 10^{-5}$ s for a 4001-bit payload.
+
+A constant performance offset is observed for the optimized hashlib implementation of \gls{sha}-256. Across the entire evaluated spectrum, the optimized backend consistently maintains a lower latency profile compared to the other configurations. 
+
+Overall, the results indicate that for larger payloads the end-to-end latency is mainly limited by fallback transmission, and differences between encoding mechanisms become secondary unless an optimized cryptographic backend is available.
+% ==================================================================================
+% 5.3 K-ID Evaluation
+% ==================================================================================
+\section[K-ID: Quantifying the Safety-Performance Trade-off]{\glsentryshort{kid}: Quantifying the Safety-Performance Trade-off}
+\label{sec:kid_eval}
+
+Having established the baseline performance, we evaluate the \gls{kid} extension, which introduces a semantic tolerance $R$ to filter benign deviations. We sweep the tolerance threshold $R \in \{2, 5, 10, 20, 30\}$ and the verification strength $n_{ver} \in \{4, 8, 12, 16\}$ bits to map the interplay between physical and informational parameters.
+
+\begin{figure}[!htb]
+    \centering
+    \begin{subfigure}[t]{0.62\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=0.16\textheight,keepaspectratio]{figures/plots/kid_sweep_gaussian_both_pareto_overall_risk.png}
-        \caption{Gaussian error model: Pareto comparison.}
+        \includegraphics[width=\linewidth,height=0.33\textheight,keepaspectratio]{figures/plots/kid_heatmap_gaussian_sha256.png}
+        \caption{Gaussian model (\gls{sha}-256 truncation).}
+        \label{fig:kid_heatmap_gauss}
+    \end{subfigure}
+    \vspace{0.25em}
+    \begin{subfigure}[t]{0.62\textwidth}
+        \centering
+        \includegraphics[width=\linewidth,height=0.33\textheight,keepaspectratio]{figures/plots/kid_heatmap_uniform_sha256.png}
+        \caption{Uniform model (\gls{sha}-256 truncation).}
+        \label{fig:kid_heatmap_uniform}
+    \end{subfigure}
+    \caption{Heatmap summary of the \gls{kid} grid over $(R,n_{ver})$. The left panel in each figure shows speedup (linear scale); the right panel shows empirical overall risk $P(\mathrm{unsafe}\cap\mathrm{accept})$ (log-scaled). Cells marked with \enquote{0} indicate an empirical zero (no failures observed in simulation).}
+    \label{fig:kid_heatmaps}
+\end{figure}
+
+\FloatBarrier
+
+The heatmaps in Figure~\ref{fig:kid_heatmaps} show that the tolerance radius $R$ sets the attainable speedup, while the verifier length $n_{ver}$ determines the residual safety floor. Analyzing the results vertically, an increase in $R$ leads to a consistent improvement in speedup across all configurations. This trend is driven by semantic filtering: a larger tolerance reduces the frequency of active verification events. The overall risk also tends to decrease (and can vanish within simulation limits) as $R$ increases. While a larger $R$ increases the conditional collision probability for a single check by expanding the acceptance set $\mathcal{A}_R$ (and thus its size $K=|\mathcal{A}_R|$), this effect can be offset by the rapid decline in the trigger probability $P(\text{trigger})$. In the Uniform model, the overall risk drops to zero at $R=30$ because the threshold encapsulates the noise boundary ($a \approx 27.71$), making the protocol nearly silent and reducing opportunities for collisions. In the Gaussian model, the long-tailed distribution ensures that $P(\text{trigger}) > 0$ even at $R=30$, leaving a residual risk of approximately $10^{-5}$ that must be mitigated by $n_{ver}$.
+
+Looking horizontally, increasing $n_{ver}$ from 4 to 16 bits results in a slight decrease in speedup due to the added bit-overhead per verification check. Simultaneously, the overall risk exhibits an exponential decay. For a tight tolerance of $R=2$, increasing the verifier entropy suppresses the risk in the Gaussian model from 0.8 down to a statistical zero. This indicates that increasing verifier entropy is an effective way to lower the safety floor, particularly when tight tolerances require frequent active monitoring.
+
+Taken together, \gls{kid} supports two complementary operating regimes. In the high-$R$ regime, the protocol can become largely silent when deviations remain within the tolerated region; the resulting efficiency depends on the noise distribution. In the high-$n_{ver}$ regime, safety is maintained through probabilistic filtering, which remains effective even when verification is frequent. These findings suggest that systems in predictable environments can prioritize larger $R$ to reduce bandwidth, while systems under uncertain or heavy-tailed noise require sufficient $n_{ver}$ to maintain reliable state synchronization.
+
+\section{Pareto Optimization for Deployment}
+\label{sec:pareto_optimization}
+
+To support deployment decisions, the multi-dimensional configuration grid is projected onto a speedup-versus-risk plane. Figure~\ref{fig:kid_pareto_final} visualizes the Pareto frontier for both Gaussian and Uniform error models, representing the set of non-dominated configurations where no further increase in speedup is possible without increasing the empirical risk. The specific values for these points are detailed in Table~\ref{tab:pareto_gaussian} and Table~\ref{tab:pareto_uniform}.
+
+\begin{figure}[!htbp]
+    \centering
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/plots/kid_sweep_gaussian_both_pareto_overall_risk.png}
+        \caption{Gaussian error model.}
         \label{fig:kid_pareto_gaussian}
     \end{subfigure}
-
-    \vspace{0.0em}
-
-    \begin{subfigure}[t]{0.95\textwidth}
+    \hfill
+    \begin{subfigure}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth,height=0.16\textheight,keepaspectratio]{figures/plots/kid_sweep_uniform_both_pareto_overall_risk.png}
-        \caption{Uniform error model: Pareto comparison.}
+        \includegraphics[width=\linewidth]{figures/plots/kid_sweep_uniform_both_pareto_overall_risk.png}
+        \caption{Uniform error model.}
         \label{fig:kid_pareto_uniform}
     \end{subfigure}
-    \caption{Pareto frontier of \gls{kid} design over $(n_{ver}, R)$. The solid black lines connect Pareto-nondominated configurations for the SHA-256 implementation, delineating the theoretical efficiency limit of the protocol. Points with $R=30$ are shown for reference but are excluded from the Pareto-optimal set selection.}
+    \caption{Pareto frontiers for the \gls{kid} protocol. The curves illustrate the trade-off between empirical risk and speedup. The absence of loose tolerance configurations (e.g., $R=30$) from the non-dominated set reflects a saturation in speedup relative to the corresponding increase in acceptance-set size.}
     \label{fig:kid_pareto_final}
 \end{figure}
 
-The Pareto frontiers in Figure~\ref{fig:kid_pareto_final} reveal that the optimal design strategy depends fundamentally on the noise containment regime. 
+\begin{table}[!htbp]
+    \centering
+    \small
+    \setlength{\tabcolsep}{8pt}
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \caption{Pareto-optimal configurations (Gaussian error model).}
+        \label{tab:pareto_gaussian}
+        \begin{tabular}{cccc}
+            \toprule
+            $n_{ver}$ & $R$ & Speedup & Overall risk \\
+            \midrule
+            16  & 2  & 0.95 & 0.0 \\
+            16  & 5  & 1.16 & 0.00023 \\
+            16  & 10 & 1.69 & 0.0004 \\
+            16  & 20 & 3.52 & 0.001 \\
+            12  & 20 & 4.31 & 0.01 \\
+            8   & 20 & 7.69 & 0.07 \\
+            4   & 20 & 15.66 & 0.1 \\
+            \bottomrule
+        \end{tabular}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \caption{Pareto-optimal configurations (Uniform error model).}
+        \label{tab:pareto_uniform}
+        \begin{tabular}{cccc}
+            \toprule
+            $n_{ver}$ & $R$ & Speedup & Overall risk \\
+            \midrule
+            16  & 10 & 1.42 & 0.0 \\
+            16  & 20 & 4.47 & 0.00092 \\
+            12  & 20 & 5.81 & 0.01 \\
+            8   & 20 & 8.50 & 0.02 \\
+            4   & 20 & 15.66 & 0.04 \\
+            \bottomrule
+        \end{tabular}
+    \end{minipage}
+\end{table}
 
-For the SHA-256 implementation (Right Panels), the "Active Verification" regime ($R < 28$) forms a continuous curve in the lower-left region. Notably, the high-safety zone (Risk $< 10^{-3}$) is not populated solely by tight tolerances; rather, it includes configurations across the full range of active radii ($R \in \{2, 5, 10, 20\}$), provided they are paired with strong verifiers ($n_{ver} \ge 12$). In fact, the $R=20$ configurations (red markers) frequently dominate the tighter tolerances in this region because their wider physical margins reduce transmission frequency while the strong hash maintains safety. The curve extends rightward as the verifier strength decreases, illustrating a smooth exchange of safety for marginal speedup gains.
-
-A distinct "Passive Safety" regime appears at the far right, formed exclusively by the $R=30$ configuration (purple marker). Because this tolerance exceeds the theoretical noise boundary, the protocol achieves a discontinuous jump in performance, with speedups exceeding $200\times$. However, unlike the active regime, this operating point incurs a fixed empirical risk floor determined by the noise distribution tails, which cannot be mitigated by increasing the verifier length.
-
-Comparing the two algorithms, the SHA-256 frontier exhibits a significantly denser distribution of optimal points compared to RSID. In the active verification region, SHA-256 allows engineers to finely tune the verifier length to traverse the risk-speedup curve. In contrast, the RSID frontier (Left Panels) is sparse, often forcing a binary choice between ultra-conservative settings and the high-risk passive regime, thereby validating the architectural choice of truncated hashing for granular control.
 \FloatBarrier
+
+The composition of these frontiers suggests a saturation effect with respect to the tolerance radius. Although the experimental sweep included $R=30$, these points do not appear on the Pareto frontier. At $R=20$, the protocol already filters most perceptual noise, and the communication latency approaches a floor determined by fixed compute time and verifier transmission. Increasing the radius to $R=30$ yields negligible gains in speedup but dilutes verifier entropy by expanding the acceptance set. In practice, an oversized tolerance can also reduce robustness to state drift. In these sweeps, $R=20$ acts as a knee point for this noise level; beyond that, further expansion provides limited benefit.
+
+The choice of error model also changes the frontier shape. In the Gaussian case, the risk grows gradually with speedup due to the long-tail effect, leaving a residual risk of 0.001 even at $R=20$. Conversely, the Uniform model has a hard noise boundary; once $R$ reaches 10, the observed risk vanishes within simulation limits, enabling higher efficiency at the same empirical safety level.
+
+As a representative operating point, ($n_{ver}=12, R=20$) achieves a $4\times$ to $6\times$ speedup with approximately 1\% empirical risk. For higher-integrity targets, ($n_{ver}=16, R=20$) suppresses risk to the $10^{-3}$ level while maintaining substantial bandwidth savings. Overall, the results indicate that selecting $R$ near the saturation point of the error distribution can improve efficiency without incurring unnecessary safety penalties.
 
 % ==================================================================================
 % 5.4 Dynamic Drift Evaluation
@@ -240,61 +272,102 @@ Comparing the two algorithms, the SHA-256 frontier exhibits a significantly dens
 \section{Dynamic Evaluation Results: Random Walk with Drift}
 \label{sec:dynamic_results}
 
-Building on the experimental design detailed in Section~\ref{sec:implementation_design}, this section presents the evaluation of the K-ID protocol under dynamic conditions. We first analyze the qualitative behavior of the protocol through a representative stress-test trace, followed by a quantitative statistical analysis of safety risks and bandwidth efficiency across the parameter space.
+Building on the experimental design detailed in Section~\ref{sec:implementation_design}, this section presents the evaluation of the \gls{kid} protocol under dynamic conditions. It first analyzes the qualitative behavior of the protocol through a representative stress-test trace, followed by a quantitative statistical analysis of safety risks and bandwidth efficiency across the parameter space.
 
 \subsection{Qualitative Analysis: The Anatomy of Failure}
 \label{subsec:trace_analysis}
 
-To visualize the system's behavior under the stress-test configuration ($R=10, n_{ver}=12, \sigma=1.0$), Figure~\ref{fig:rw_timeseries} plots a 1,200-tick snapshot of the state evolution. The blue curve represents the robot's true state $S_t$ undergoing a random walk, while the dashed orange line indicates the Digital Twin's estimate $\hat{S}_t$. The green shaded band denotes the semantic safety set $\mathcal{A}_K$.
-
-The trace explicitly confirms the protocol's bandwidth suppression mechanism. For extended periods (e.g., $t \in [200, 500]$), the robot drifts within the safety envelope without triggering transmissions, effectively masking minor fluctuations. The green markers indicate nominal operation, where a boundary breach triggers an immediate fallback and correction. However, the red crosses highlight the critical failure mode induced by the 12-bit verifier: simultaneous boundary breaches and hash collisions. In these instances, the protocol fails to detect the excursion, allowing the robot to "escape" the safety set. This visualization validates the theoretical concern that probabilistic verification, when challenged by continuous drift, can lead to transient periods of unobserved instability.
+To visualize the system's behavior under dynamic drift, Figure~\ref{fig:rw_timeseries} plots a 500-tick snapshot of the state evolution for two noise regimes ($R=10$, $\sigma \in \{1,16\}$). The blue curve represents the robot's true state $S_t$ undergoing a random walk, while the dashed orange line indicates the \gls{dt}'s estimate $\hat{S}_t$. The green shaded band denotes the semantic safety set $\mathcal{A}_R$.
 
 \begin{figure*}[!htbp]
     \centering
-    % Update filename to match your generated image
-    \includegraphics[width=0.95\textwidth]{figures/plots/random_walk_drift_gaussian_step1_D15_escape_timeseries.png}
-    \caption{Drift-and-escape visualization for the dynamic random walk model ($R=10, \sigma=1.0$). The robot state $S_t$ (blue) performs a random walk while the \gls{dt} estimate $\hat{S}_t$ (orange) holds constant. Green dots mark successful corrections; red crosses mark collision-induced misses where the boundary breach is masked, allowing the trajectory to diverge beyond the safety set.}
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/plots/random_walk_drift_gaussian_step1_D15_sigma1_p01_escape_timeseries.png}
+        \caption{$\sigma=1.0$}
+        \label{fig:rw_timeseries_sigma1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/plots/random_walk_drift_gaussian_step1_D15_sigma16_p01_escape_timeseries.png}
+        \caption{$\sigma=16.0$}
+        \label{fig:rw_timeseries_sigma16}
+    \end{subfigure}
+    \caption{Drift-and-escape visualization for the dynamic random walk model ($R=10$) over 500 ticks. The robot state $S_t$ (blue) performs a random walk while the \gls{dt} estimate $\hat{S}_t$ (orange) holds constant. Light-green circles mark successful corrections; red crosses mark collision-induced misses (modeled with $p_{\mathrm{miss}}=0.1$ per verification) where the boundary breach is masked, allowing the trajectory to temporarily diverge beyond the safety set.}
     \label{fig:rw_timeseries}
 \end{figure*}
+
+\FloatBarrier
+
+The trace illustrates the protocol's bandwidth suppression mechanism. For extended periods, the robot drifts within the safety envelope without triggering full-state recovery transmissions, masking minor fluctuations. The light-green circles indicate nominal operation, where a boundary breach triggers an immediate fallback and correction. The red crosses highlight the failure mode induced by probabilistic verification: collision-induced misses (modeled here with a per-verification miss probability of $p_{\mathrm{miss}}=0.1$) can mask boundary breaches. In these instances, the protocol does not detect the excursion, allowing the robot to \enquote{escape} the safety set for a short period.
+
+Comparing the two panels suggests that under mild drift ($\sigma=1$), boundary interactions are sparse and escapes are rare within 500 ticks, so the protocol is mostly silent. Under heavy drift ($\sigma=16$), boundary interactions become frequent and clustered, meaning that even a modest miss probability can produce longer periods of unobserved instability. This observation suggests that in dynamic settings, collision risk should be evaluated jointly with the drift scale and the rate of boundary encounters, rather than in isolation.
+
 
 \subsection{Quantitative Risk: Persistence and Magnitude}
 \label{subsec:risk_analysis}
 
-Beyond the single trace, we quantify the statistical risk profile using the parameter sweep data ($K \in \{2, 5, 10, 20\}$). Figure~\ref{fig:rw_metrics} reports the 95th-percentile summaries for Breach Duration ($L_K$) and Maximum Drift.
-
-Figure~\ref{fig:rw_metrics}(a) reveals the non-linear nature of dynamic risk. For weak verifiers ($n_{ver}=8$, blue line), the breach duration exhibits a sharp jump as the tolerance $K$ increases. This indicates that failures are not independent events; a hash collision at step $t$ increases the likelihood of a collision at step $t+1$ due to the high correlation of the drifting state. Consequently, a single miss often cascades into a persistent blind spot. In contrast, the $n_{ver} \ge 12$ configurations (orange and green lines) effectively suppress these consecutive failures, maintaining the breach duration near 1.0. This validates that while $n_{ver}=12$ carries a marginal risk of single-step misses (as seen in the trace), it successfully prevents the catastrophic long-duration failures observed with 8-bit verifiers.
-
-Figure~\ref{fig:rw_metrics}(b) illustrates the physical magnitude of these failures. We observe a linear relationship between the tolerance $K$ and the maximum peak drift. This confirms that while increasing $K$ improves bandwidth efficiency (masking), it raises the stakes: when a failure eventually occurs (whether due to a miss or transmission latency), the accumulated error is proportional to the masking radius. Thus, the choice of $K$ represents a direct trade-off between communication frequency and the worst-case physical deviation.
+Beyond the single trace, we quantify the statistical risk profile using the parameter sweep data ($R \in \{2.5, 5, 10, 20\}$). Figure~\ref{fig:rw_metrics} reports the 95th-percentile summaries for Breach Duration ($L_R$) and Maximum Drift under a Gaussian random walk model.
 
 \begin{figure*}[!htbp]
     \centering
     \begin{subfigure}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{figures/plots/random_walk_drift_gaussian_step1_D15_breach_streak_p95.png}
-        \caption{95th percentile Breach Duration $L_K$.}
+        \includegraphics[width=\textwidth]{figures/plots/random_walk_drift_gaussian_gaussian_step16_D15_breach_streak_p95.png}
+        \caption{95th percentile Breach Duration $L_R$.}
         \label{fig:rw_breach_p95}
     \end{subfigure}
     \hfill
     \begin{subfigure}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{figures/plots/random_walk_drift_gaussian_step1_D15_max_error_p95.png}
+        \includegraphics[width=\textwidth]{figures/plots/random_walk_drift_gaussian_gaussian_step16_D15_max_error_p95.png}
         \caption{95th percentile of Maximum Drift.}
         \label{fig:rw_max_p95}
     \end{subfigure}
-    \caption{Dynamic risk metrics vs. tolerance $K$ (Gaussian drift $\sigma=1.0$). Panel (a) shows that weak verifiers ($n=8$) suffer from cascading failures as $K$ increases, leading to long breach durations. Panel (b) shows that the peak physical error scales linearly with the masking radius $K$.}
+    \caption{Dynamic risk metrics versus tolerance radius $R$ (Gaussian drift $\sigma=16.0$). Panel (a) shows the duration for which the desynchronization remains undetected once it exceeds $R$. Panel (b) captures the peak physical error during these undetected intervals.}
     \label{fig:rw_metrics}
 \end{figure*}
 
-\subsection{Efficiency Analysis: Inter-Fallback Times}
-\label{subsec:efficiency_analysis}
+\FloatBarrier
 
-Finally, we evaluate the bandwidth implications of the protocol through the distribution of \glspl{ift}. Figure~\ref{fig:rw_ift_cdf} plots the empirical \gls{cdf} of the silent intervals.
+Figure~\ref{fig:rw_metrics}(a) illustrates a downward trend in the undetected interval $L_R$ as the tolerance radius $R$ increases. This behavior is tied to the stability of the drifting state relative to the threshold. At tight tolerances (e.g., $R=2.5$), the system is sensitive to minor fluctuations, and the high correlation between consecutive steps in a random walk means that once the state crosses the boundary, it is likely to remain in a "breached" state for a sustained period. As $R$ increases, the criterion for a breach becomes more stringent. While a larger $R$ increases the induced acceptance-set size $K=|\mathcal{A}_R|$ (and thus the per-check miss probability $p_{miss}\approx K/2^{n_{ver}}$), extreme deviations are also statistically more likely to fluctuate back within the tolerance due to the stochastic nature of the drift, thereby terminating the recorded breach duration earlier.
 
-The results demonstrate a significant "right-shift" effect as the tolerance $K$ increases. For the tightest tolerance ($K=2$, blue line), the system transmits frequently, with approximately 99\% of intervals being shorter than 10 ticks, indicating near-continuous communication. In contrast, for a relaxed tolerance ($K=20$, red line), the curve flattens significantly, showing a median silence duration of approximately 50 ticks, with a "heavy tail" extending beyond 200 ticks. This statistical characteristic effectively transforms the continuous sensor stream into sporadic, bursty traffic. For network schedulers, the red curve implies that if $K=20$ is configured, the channel remains idle for substantial periods, allowing the vast majority of time slots to be reallocated to other devices without contention.
+The curves for $n_{ver} \in \{8, 12, 16\}$ appear close because, in this regime, the per-event miss probabilities are sufficiently low that the duration is primarily governed by the underlying random walk dynamics rather than by collision-induced cascades. The exclusion of $n_{ver}=4$ is necessary as its miss probability approximates unity for moderate $R$, leading to a saturation that obscures the comparative analysis of more practical configurations.
 
-\begin{figure*}[!htbp]
+Figure~\ref{fig:rw_metrics}(b) illustrates the physical magnitude of these failures. Despite the decrease in duration shown in Figure~\ref{fig:rw_metrics}(a), the peak physical error scales consistently with $R$. This reflects the masking effect: a larger tolerance allows a greater magnitude of drift to accumulate before any verification is triggered. Furthermore, the $n_{ver}=8$ configuration exhibits a higher peak error compared to $n_{ver} \ge 12$, indicating that weaker verifiers are more susceptible to consecutive misses once the system enters the $|E_t| > R$ regime. This extends the time window for the drift to grow unchecked. The convergence of the $n_{ver}=12$ and $n_{ver}=16$ curves suggests that for this noise level, a 12-bit verifier already reaches a point of diminishing returns where the peak error is dominated by the masking radius $R$ rather than the probability of hash collisions.
+
+Overall, the results show a trade-off between the duration and the magnitude of synchronization failures. Increasing $R$ reduces the average time spent in an undetected state, but it leads to larger physical errors when failures occur.
+
+
+\subsection{Throughput Analysis: Full-State Update Intervals}
+\label{subsec:full_update_analysis}
+
+This section evaluates the protocol's effective throughput by analyzing the \gls{sri}, defined as the number of time steps between two consecutive successful state synchronizations. As illustrated in the data flow (Figure~3.3), a state restoration is not merely triggered by the physical drift exceeding the threshold ($|E_t| > R$), but is also contingent upon the verifier successfully identifying the desynchronization to trigger the $n_{data}$ fallback. Consequently, the \gls{sri} distribution directly quantifies the actual re-synchronization rate under combined physical and cryptographic constraints.
+
+\begin{figure}[!htbp]
     \centering
-    \includegraphics[width=0.92\textwidth]{figures/plots/random_walk_drift_gaussian_step1_D15_ift_cdf.png}
-    \caption{Empirical \gls{cdf} of \glspl{ift} for the random-walk drift model. Larger $K$ values shift the distribution to the right, indicating longer periods of silence (masking) and reduced channel utilization.}
-    \label{fig:rw_ift_cdf}
-\end{figure*}
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/plots/random_walk_drift_gaussian_step16_D15_sri_cdf_res0p1_nver8.png}
+        \caption{$n_{ver}=8$.}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/plots/random_walk_drift_gaussian_step16_D15_sri_cdf_res0p1_nver16.png}
+        \caption{$n_{ver}=16$.}
+    \end{subfigure}
+    \caption{Empirical \gls{cdf} of \glspl{sri} for the random-walk drift model (Gaussian drift $\sigma=16.0$, quantization $\Delta=0.1$). The x-axis is truncated at $15$ ticks to emphasize the dominant operating regime. The curves shift right as $R$ increases, while the verifier entropy $n_{ver}$ determines the slope and tail stability.}
+    \label{fig:rw_sri_cdf}
+\end{figure}
+
+\FloatBarrier
+
+Figure~\ref{fig:rw_sri_cdf} reports the empirical \gls{cdf} of the \gls{sri} across varying tolerances. For the $n_{ver}=8$ configuration, the $R=20$ case is excluded from the analysis due to entropy saturation: at a state resolution of $\Delta=0.1$, the induced acceptance-set size is $K=|\mathcal{A}_{R=20}|=2\lfloor 20/0.1 \rfloor + 1 = 401$, which exceeds the total verifier space ($2^8=256$) provided by an 8-bit verifier. In this regime, the theoretical miss probability $p_{miss}$ exceeds unity, rendering the verification mechanism mathematically incapable of reliable detection and causing the synchronization process to break down.
+
+A comparison between Figure~\ref{fig:rw_sri_cdf}(a) and (b) reveals distinct trends in synchronization behavior. Within each sub-figure, an increase in $R$ results in a pronounced right-shift of the \gls{cdf} curve. This quantifies the traffic sparsification effect of the masking mechanism, where a larger physical tolerance reduces the frequency of boundary crossings and, by extension, the baseline rate of full-state updates. However, comparing the two verifier lengths shows that the 8-bit verifier exhibits a significantly shallower slope and a heavier tail. This indicates that even when the drift exceeds $R$, there is a high probability of hash collisions (misses) that delay the fallback, forcing the system to wait for subsequent verification events to resolve the error.
+
+In contrast, the 16-bit verifier curves converge rapidly toward 1.0 shortly after crossing their respective $R$ thresholds. With $p_{miss}$ reduced to negligible levels, the \gls{sri} distribution becomes almost entirely governed by the stochastic timing of the physical drift rather than by collision-induced delays. This indicates the role of verifier entropy in reducing collision-induced uncertainty in recovery timing.
+
+Overall, the \gls{sri} distribution illustrates a two-tier control logic in the \gls{kid} protocol: the physical tolerance radius $R$ regulates the base synchronization rhythm, while the verifier length $n_{ver}$ determines the reliability of recovery once $|E_t| > R$. Since the acceptance-set size $K=|\mathcal{A}_R|$ grows with $R$ and quantization $\Delta$, $n_{ver}$ should be scaled accordingly to avoid long-tail synchronization gaps caused by verification failures.

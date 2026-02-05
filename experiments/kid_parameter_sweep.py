@@ -95,13 +95,17 @@ def _symbols_for_payload(n_data_bits: int, symbol_bits: int) -> int:
     return max(1, int(math.ceil(n_data_bits / float(symbol_bits))))
 
 
-def _message_from_state(state_q: int, n_data_bits: int, symbol_bits: int) -> List[int]:
-    """Deterministically maps a quantized state to a payload-like message.
+def _message_from_state(state_q: int, n_data_bits: int, n_ver_bits: int, *, k_i: int = 2) -> List[int]:
+    """Deterministically maps a quantized scalar state to a payload-like message.
 
-    The message length scales as k = ceil(n_data_bits / symbol_bits), matching the
-    RS-ID chunking model used in the thesis.
+    Concatenated RS-ID modeling (Chapter 3): treat the payload as packed symbols
+    over GF(2^{k_i*n_ver}) with k_i=2 by default.
+
+    So the message length scales as k = ceil(n_data_bits / (k_i*n_ver_bits)).
     """
-    gf_range = 1 << int(symbol_bits)
+    n_ver_bits_i = int(n_ver_bits)
+    symbol_bits = int(k_i) * n_ver_bits_i
+    gf_range = 1 << symbol_bits
     k = _symbols_for_payload(n_data_bits, symbol_bits)
     base = int(state_q) % gf_range
     return [(base + i) % gf_range for i in range(k)]
@@ -115,7 +119,7 @@ class VerifierProvider:
 
     Supported systems:
       - sha256_trunc: truncated SHA-256 of the quantized scalar state
-      - rsid: RS-ID tags computed via the project idsys library
+            - rsid: concatenated RS-ID tags (RS2ID) computed via the project idsys library
     """
 
     def __init__(
@@ -152,17 +156,18 @@ class VerifierProvider:
             self._pre["rsid"] = {}
             for n_bits in self._n_bits_list:
                 id_sys = create_id_system(
-                    "RSID",
+                    "RS2ID",
                     {
                         "gf_exp": int(n_bits),
-                        "tag_pos": list(self._rsid_tag_pos),
+                        "tag_pos": [int(self._rsid_tag_pos[0])],
+                        "tag_pos_in": [int(self._rsid_tag_pos[0])],
                     },
                 )
                 per_bits: Dict[int, Codeword] = {}
                 for v in distinct_values:
                     msg = _message_from_state(v, self._n_data_bits, int(n_bits))
-                    tag_list = id_sys.send(msg)
-                    per_bits[v] = tuple(int(x) for x in tag_list)
+                    tag = id_sys.send(msg)
+                    per_bits[v] = int(tag)
                 self._pre["rsid"][n_bits] = per_bits
 
     @property
@@ -174,10 +179,11 @@ class VerifierProvider:
             return self._rsid_systems[n_bits]
         except KeyError:
             sys_obj = create_id_system(
-                "RSID",
+                "RS2ID",
                 {
                     "gf_exp": int(n_bits),
-                    "tag_pos": list(self._rsid_tag_pos),
+                    "tag_pos": [int(self._rsid_tag_pos[0])],
+                    "tag_pos_in": [int(self._rsid_tag_pos[0])],
                 },
             )
             self._rsid_systems[n_bits] = sys_obj
@@ -200,8 +206,8 @@ class VerifierProvider:
             else:
                 id_sys = self._get_rsid_system(int(n_bits))
                 msg = _message_from_state(int(value), self._n_data_bits, int(n_bits))
-                tag_list = id_sys.send(msg)
-                cw = tuple(int(x) for x in tag_list)
+                tag = id_sys.send(msg)
+                cw = int(tag)
             per_bits[value] = cw
             return cw
 
@@ -240,24 +246,24 @@ def normal_cdf(z: float) -> float:
     return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
 
 
-def theoretical_unsafe_rate(k_radius: float, std: float) -> float:
+def theoretical_unsafe_rate(r_radius: float, std: float) -> float:
     if std <= 0:
         return 0.0
-    z = k_radius / std
+    z = r_radius / std
     return max(0.0, min(1.0, 2.0 * (1.0 - normal_cdf(z))))
 
 
-def theoretical_unsafe_rate_uniform(k_radius: float, halfwidth: float) -> float:
+def theoretical_unsafe_rate_uniform(r_radius: float, halfwidth: float) -> float:
     """Unsafe rate for X ~ U[mean-halfwidth, mean+halfwidth] (no clipping).
 
-    Unsafe = |X-mean| > k_radius.
+    Unsafe = |X-mean| > r_radius.
     """
     if halfwidth <= 0:
         return 0.0
-    if k_radius >= halfwidth:
+    if r_radius >= halfwidth:
         return 0.0
-    # P(|X-mean| <= K) = (2K) / (2a) = K/a
-    return max(0.0, min(1.0, 1.0 - (k_radius / halfwidth)))
+    # P(|X-mean| <= R) = (2R) / (2a) = R/a
+    return max(0.0, min(1.0, 1.0 - (r_radius / halfwidth)))
 
 
 @dataclass
@@ -303,7 +309,10 @@ def run_simulation(cfg: Config, n_ver_bits: int, k_radius: int, vp: VerifierProv
     seed = cfg.seed if cfg.reset_seed_per_config else None
     rng = np.random.default_rng(seed=seed)
 
-    accept_physical = (cfg.robot_mean - k_radius, cfg.robot_mean + k_radius)
+    # NOTE: k_radius is an integer radius in *quantized steps* (K).
+    # Physical tolerance radius is R = K * Δ.
+    r_radius = float(k_radius) * float(cfg.value_resolution)
+    accept_physical = (cfg.robot_mean - r_radius, cfg.robot_mean + r_radius)
     accept_physical = (max(cfg.physical_min, accept_physical[0]), min(cfg.physical_max, accept_physical[1]))
     accept_range = (
         quantize_floor(accept_physical[0], cfg.physical_min, cfg.value_resolution),
@@ -370,7 +379,7 @@ def run_simulation(cfg: Config, n_ver_bits: int, k_radius: int, vp: VerifierProv
         fallback_count=fallback_count,
         ticks=cfg.ticks,
         unique_valid_hashes=len(valid_codewords),
-        codeword_bits=(n_ver_bits * len(cfg.rsid_tag_pos) if cfg.system == "rsid" else n_ver_bits),
+        codeword_bits=n_ver_bits,
         domain_unsafe_size=domain_unsafe_size,
         domain_unsafe_collision_count=domain_unsafe_collision_count,
     )
@@ -483,11 +492,30 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         type=int,
         nargs="+",
         default=[2],
-        help="RS-ID tag positions (default: 2). Used when system=rsid/both.",
+        help="RS-ID tag position(s) (default: 2). For concatenated RS-ID (RS2ID) only the first value is used.",
     )
 
     p.add_argument("--nver", type=int, nargs="+", default=[4, 8, 12, 16], help="Verifier sizes in bits")
-    p.add_argument("--k", type=int, nargs="+", default=[2, 5, 10, 20], help="Tolerance radii K (range size = 2K+1)")
+    p.add_argument(
+        "--k",
+        type=int,
+        nargs="+",
+        default=[2, 5, 10, 20],
+        help=(
+            "Integer tolerance radius K in quantized steps. Physical radius is R = K * value_resolution (Δ). "
+            "(acceptance set size in quantized states is approximately 2K+1)"
+        ),
+    )
+    p.add_argument(
+        "--r",
+        type=float,
+        nargs="+",
+        default=None,
+        help=(
+            "Optional physical tolerance radii R (same physical units as robot_mean). "
+            "If provided, K is derived as ceil(R / value_resolution)."
+        ),
+    )
 
     p.add_argument(
         "--reset-seed-per-config",
@@ -534,40 +562,44 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
 
     if args.suggest_std:
+        # Interpret K as steps and convert to physical radius R for the probability model.
+        k_steps_list = [int(x) for x in args.k]
+        r_list = [float(k) * float(args.value_resolution) for k in k_steps_list]
         if args.error_dist == "normal":
             print("Std suggestion helper (theoretical unsafe rate under Normal, before clipping):")
-            print(f"Ks = {args.k}")
-            header = "std" + "".join([f" | unsafe(K={k})" for k in args.k])
+            print(f"Ks(steps) = {k_steps_list}  =>  Rs(physical) = {[f'{r:g}' for r in r_list]}")
+            header = "std" + "".join([f" | unsafe(R={r:g})" for r in r_list])
         else:
             print("Std suggestion helper (theoretical unsafe rate under Uniform, before clipping):")
-            print(f"Ks = {args.k}")
-            header = "halfwidth" + "".join([f" | unsafe(K={k})" for k in args.k])
+            print(f"Ks(steps) = {k_steps_list}  =>  Rs(physical) = {[f'{r:g}' for r in r_list]}")
+            header = "halfwidth" + "".join([f" | unsafe(R={r:g})" for r in r_list])
         print(header)
         print("-" * len(header))
         for s in args.std_candidates:
             if args.error_dist == "normal":
-                rates = [theoretical_unsafe_rate(float(k), float(s)) for k in args.k]
+                rates = [theoretical_unsafe_rate(float(r), float(s)) for r in r_list]
             else:
-                rates = [theoretical_unsafe_rate_uniform(float(k), float(s)) for k in args.k]
+                rates = [theoretical_unsafe_rate_uniform(float(r), float(s)) for r in r_list]
             print(f"{s:<4.1f}" + "".join([f" | {r:<11.3f}" for r in rates]))
         # Heuristic: pick the smallest std that gives >=5% unsafe for the largest K.
-        k_max = max(args.k)
+        k_max = max(k_steps_list)
+        r_max = float(k_max) * float(args.value_resolution)
         chosen = None
         for s in sorted(args.std_candidates):
             if args.error_dist == "normal":
-                ok = theoretical_unsafe_rate(float(k_max), float(s)) >= 0.05
+                ok = theoretical_unsafe_rate(float(r_max), float(s)) >= 0.05
             else:
-                ok = theoretical_unsafe_rate_uniform(float(k_max), float(s)) >= 0.05
+                ok = theoretical_unsafe_rate_uniform(float(r_max), float(s)) >= 0.05
             if ok:
                 chosen = s
                 break
         if chosen is not None:
             if args.error_dist == "normal":
-                print(f"\nHeuristic pick: robot_std ≈ {chosen} (gives >=5% unsafe for K={k_max}).")
+                print(f"\nHeuristic pick: robot_std ≈ {chosen} (gives >=5% unsafe for R={r_max:g}).")
             else:
-                print(f"\nHeuristic pick: uniform_halfwidth ≈ {chosen} (gives >=5% unsafe for K={k_max}).")
+                print(f"\nHeuristic pick: uniform_halfwidth ≈ {chosen} (gives >=5% unsafe for R={r_max:g}).")
         else:
-            print(f"\nHeuristic pick: increase std candidates; none give >=5% unsafe for K={k_max}.")
+            print(f"\nHeuristic pick: increase std candidates; none give >=5% unsafe for R={r_max:g}.")
         return 0
 
     cfg = Config(
@@ -590,7 +622,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     n_ver_list = [int(x) for x in args.nver]
-    k_list = [int(x) for x in args.k]
+
+    if args.r is not None:
+        if len(args.r) == 0:
+            raise ValueError("--r provided but empty")
+        k_list = [int(math.ceil(float(r) / float(cfg.value_resolution))) for r in args.r]
+    else:
+        k_list = [int(x) for x in args.k]
 
     # Build quantized domain.
     if cfg.value_resolution <= 0:
@@ -634,16 +672,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         cfg_system = Config(**{**cfg.__dict__, "system": system})
         print(f"\n=== System: {system} | error_dist={cfg_system.error_dist} ===")
         for k_radius in k_list:
-            quantized_range_est = int(round((2.0 * k_radius) / cfg_system.value_resolution)) + 1
+            r_radius = float(k_radius) * float(cfg_system.value_resolution)
+            quantized_range_est = (2 * int(k_radius)) + 1
             print(
-                f"[ Tolerance Radius K = {k_radius} (physical units), value_resolution={cfg_system.value_resolution} "
-                f"(~{quantized_range_est} quantized states) ]"
+                f"[ Tolerance: K={k_radius} steps => R={r_radius:g} (physical units), "
+                f"value_resolution={cfg_system.value_resolution} (~{quantized_range_est} quantized states) ]"
             )
             for n_ver_bits in n_ver_list:
                 res = run_simulation(cfg_system, n_ver_bits=n_ver_bits, k_radius=k_radius, vp=vp)
 
                 if args.show_domain_collision_rate and vp.precompute_enabled:
-                    accept_physical = (cfg_system.robot_mean - k_radius, cfg_system.robot_mean + k_radius)
+                    r_radius = float(k_radius) * float(cfg_system.value_resolution)
+                    accept_physical = (cfg_system.robot_mean - r_radius, cfg_system.robot_mean + r_radius)
                     accept_physical = (
                         max(cfg_system.physical_min, accept_physical[0]),
                         min(cfg_system.physical_max, accept_physical[1]),
@@ -700,6 +740,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "t_compute_us": cfg.t_compute_s * 1e6,
                         "n_ver_bits": res.n_ver_bits,
                         "k_radius": res.k_radius,
+                        "r_radius": float(res.k_radius) * float(cfg.value_resolution),
                         "accept_low": res.accept_range[0],
                         "accept_high": res.accept_range[1],
                         "range_size": res.range_size,

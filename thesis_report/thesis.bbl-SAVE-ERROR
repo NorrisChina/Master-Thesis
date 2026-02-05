@@ -19,6 +19,39 @@
 
 \refsection{0}
   \datalist[entry]{nty/global//global/global}
+    \entry{Ahlswede_KID}{article}{}
+      \name{author}{1}{}{%
+        {{hash=3f9d8aa4b63dfc7900497c47637e509b}{%
+           family={Ahlswede},
+           familyi={A\bibinitperiod},
+           given={Rudolf},
+           giveni={R\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Elsevier}%
+      }
+      \strng{namehash}{3f9d8aa4b63dfc7900497c47637e509b}
+      \strng{fullhash}{3f9d8aa4b63dfc7900497c47637e509b}
+      \strng{bibnamehash}{3f9d8aa4b63dfc7900497c47637e509b}
+      \strng{authorbibnamehash}{3f9d8aa4b63dfc7900497c47637e509b}
+      \strng{authornamehash}{3f9d8aa4b63dfc7900497c47637e509b}
+      \strng{authorfullhash}{3f9d8aa4b63dfc7900497c47637e509b}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Discrete Applied Mathematics}
+      \field{note}{See Section 4: Identification of message sets}
+      \field{number}{9}
+      \field{title}{General Theory of Information Transfer: Updated}
+      \field{volume}{156}
+      \field{year}{2008}
+      \field{pages}{1348\bibrangedash 1388}
+      \range{pages}{41}
+      \verb{doi}
+      \verb 10.1016/j.dam.2007.07.007
+      \endverb
+    \endentry
     \entry{ahlswede1998common}{article}{}
       \name{author}{2}{}{%
         {{hash=3f9d8aa4b63dfc7900497c47637e509b}{%

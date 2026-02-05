@@ -182,7 +182,7 @@ def fig2(args: argparse.Namespace):
     # avoid duplicate legend entries by creating unique handles
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
-    plt.legend(by_label.values(), by_label.keys(), loc='best', fontsize='small')
+    plt.legend(by_label.values(), by_label.keys(), loc='best')
     plt.savefig(os.path.join(OUT_DIR, 'fig2.png'), dpi=200)
     print('Fig.2 saved to', os.path.join(OUT_DIR, 'fig2.png'))
 

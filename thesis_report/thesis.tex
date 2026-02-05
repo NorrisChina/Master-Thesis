@@ -17,7 +17,7 @@
 % ===============================================
 %	Symbols and acropnyms for the glosseries package
 % ===============================================
-%\input{symbols}
+\input{tex_src/glossary_symbols}
 \input{acronyms}
 
 \begin{document}
@@ -73,9 +73,13 @@
 % Avoid a forced right-hand start for this front-matter chapter
 \begingroup
 \KOMAoptions{open=any}
-\printacronyms[style=acrotabularx,title={Acronyms}]
+\printacronyms[style=acrotabularxpages,title={Acronyms}]
 \endgroup
 \clearpage
+
+% Reset the first-use state after the acronym list so the main text
+% (starting with the Introduction) expands acronyms on first occurrence.
+\glsresetall
 
 \pagenumbering{arabic} % arabic numbering for the PDF starting with 1
 % ===============================================
@@ -89,14 +93,10 @@
 \include{chapters/5_Results_and_Evaluation}
 \include{chapters/6_Conclusion_and_Future_work}
 
-\appendix
 % ===============================================
 %	The bibliography
 % ===============================================
 \printbibliography[heading=bibintoc]%
-% ===============================================
-%	The real appendix :D
-% ===============================================
-\include{appendix/appendix}
+		
 		
 \end{document}

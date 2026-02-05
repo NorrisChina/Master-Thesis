@@ -2,29 +2,29 @@
 \label{ch:design_methodology}
 
 % \section{Overview}
-This chapter formulated the system model for state synchronization, advancing from the classical transmission baseline to the identification (ID) and tolerance-based K-ID paradigms. To quantify the performance gains, we established an analytical latency model comparing these approaches. Furthermore, we dissected the K-ID mechanism, analyzing the critical engineering trade-offs involving quantization resolution, computational cost (contrasting RS-ID and SHA-256), and the collision risks associated with the acceptance set size $K$. Finally, the analysis extended to a dynamic random walk model, providing a theoretical basis for probing safety boundaries and error accumulation in time-varying systems
+This chapter formulates the system model for state synchronization, moving from classical transmission to identification (\gls{id}) and tolerance-based \gls{kid}. It introduces an analytical end-to-end latency model and analyzes key engineering trade-offs, including quantization resolution, computational cost (\gls{rsid} vs.\ \gls{sha}-256), and collision risk as a function of the acceptance-set size $K$. The chapter also introduces a time-correlated random-walk model to study safety boundaries and error accumulation in time-varying systems.
 
 \section{System Model and Data Flow}
 \label{sec:system_model}
 
-We consider a networked control system where a Robot (Sender) synchronizes its state $S_t$ with a Digital Twin (Receiver) maintaining a prediction $\hat{S}_t$. The fundamental difference between the two approaches lies in their data processing pipelines.
+A networked control system is considered in which a robot (sender) synchronizes its state $S_t$ with a \gls{dt} (receiver) maintaining a prediction $\hat{S}_t$. The fundamental difference between the two approaches lies in their data processing pipelines.
 
 \subsection{Baseline: Traditional Transmission Flow}
-The standard synchronization protocol follows a linear, ``always-on'' approach. As illustrated in Figure~\ref{fig:trad_flow}, the robot first samples its sensors to generate the full state message $S_t$ (size $n_{data}$) and transmits the entire payload over the channel. The Digital Twin receives the message, overwrites its local prediction $\hat{S}_t$ with the received $S_t$, and confirms the update.
+The standard synchronization protocol follows a linear, ``always-on'' approach. As illustrated in Figure~\ref{fig:trad_flow}, the robot first samples its sensors to generate the full state message $S_t$ (size $n_{data}$) and transmits the entire payload over the channel. The \gls{dt} receives the message, overwrites its local prediction $\hat{S}_t$ with the received $S_t$, and confirms the update.
 
 \begin{figure}[H]
     \centering
     % Ensure you have the file 'figures/trad.png'
     \includegraphics[width=0.8\textwidth]{figures/trad.png}
-    \caption{Data flow of Traditional Synchronization: The full state is transmitted regardless of the Digital Twin's knowledge.}
+    \caption{Data flow of Traditional Synchronization: The full state is transmitted regardless of the \gls{dt}'s knowledge.}
     \label{fig:trad_flow}
 \end{figure}
 \FloatBarrier
 
 This process is robust but inefficient, since the transmission cost is paid unconditionally. Under this baseline, the transmission latency is deterministic and scales directly with the state size, $T_{trans} = n_{data}/B$.
 
-\subsection{Proposed: Identification (ID) Data Flow}
-The identification-based protocol reduces communication load by verifying consistency before sending the full state. As shown in Figure~\ref{fig:id_flow}, both the Robot and the DT first generate their respective state views, $S_t$ and $\hat{S}_t$. The Robot computes a compact verifier $v = E(S_t, r)$ using a shared seed $r$, while the DT computes the corresponding reference $\hat{v} = E(\hat{S}_t, r)$ locally. Only the short verifier $v$ (size $n_{ver} \ll n_{data}$) is transmitted. The DT then compares $v$ and $\hat{v}$: if they match, the protocol terminates; if they differ, the DT triggers fallback and requests the full payload $S_t$ to resynchronize.
+\subsection{Identification (ID) Data Flow}
+The identification-based protocol reduces communication load by verifying consistency before sending the full state. As shown in Figure~\ref{fig:id_flow}, both the robot and the \gls{dt} first generate their respective state views, $S_t$ and $\hat{S}_t$. The robot computes a compact verifier $v = E(S_t, r)$ using a shared seed $r$, while the \gls{dt} computes the corresponding reference $\hat{v} = E(\hat{S}_t, r)$ locally. Only the short verifier $v$ (size $n_{ver} \ll n_{data}$) is transmitted. The \gls{dt} then compares $v$ and $\hat{v}$: if they match, the protocol terminates; if they differ, the \gls{dt} triggers fallback and requests the full payload $S_t$ to resynchronize.
 
 \begin{figure}[H]
     \centering
@@ -37,55 +37,25 @@ The identification-based protocol reduces communication load by verifying consis
 
 \vspace{0.25em}
 
-\section{Encoding Mechanisms and Reliability Analysis}
-\label{sec:reliability_analysis}
+\subsection{Algebraic Saturation and the Role of Concatenation}
+\label{subsec:algebraic_limit_ch3}
 
-The safety of the ID flow depends on the reliability of the Verify stage. A critical failure occurs if the states differ ($S_t \neq \hat{S}_t$) but their verifiers collide ($v = \hat{v}$), defined as a Type II Error ($p_{miss}$). We investigate two distinct encoding mechanisms, detailing their construction and theoretical error bounds.
+A critical bottleneck in the rudimentary polynomial model is that the size of the evaluation field $Q = 2^{n_{ver}}$ must be significantly larger than the number of state symbols $k$. In a single-layer construction, the miss probability is bounded by $P_{miss} \le (k-1)/Q$. If the state dimensionality $k$ approaches or exceeds $Q$, the field becomes saturated, rendering it mathematically impossible to guarantee a seed $r$ that distinguishes two distinct states via a single sample. Under such conditions, the verifier size $n_{ver}$ must grow logarithmically with the data size ($n_{ver} > \log_2 k$) to maintain any meaningful reliability.
 
-\subsection{Algebraic Implementation and Error Bound (RS-ID)}
-\label{sec:rsid_implementation}
+To overcome this limit without increasing the transmitted verifier length, concatenated RS codes are used. This construction operates over a virtual extension field $GF(Q^{m})$, where $m$ represents the concatenation depth. By treating the state as a polynomial over this expanded field, the effective algebraic constraint is pushed to an exponentially larger field $Q_{eff} = Q^m$. 
 
-To integrate the RS-ID scheme into our synchronization protocol, we map the high-dimensional state vector $S$ of length $n_{data}$ to a polynomial over the finite field $\mathbb{F}_q$, where $q = 2^{n_{ver}}$.
-
-Following the construction detailed in Section~\ref{subsec:rsid_geometry}, the bitstream $S$ is sliced into $k$ coefficients. For the specific bandwidth constraints of our system model, the number of coefficients is determined by:
+The suppression of the miss probability under concatenation can be demonstrated by analyzing the multi-stage evaluation process. For the $m$-layer construction implemented in this thesis, the provable upper bound on the collision probability $\lambda_2$ is transformed to:
 \begin{equation}
-    k = \left\lceil \frac{n_{data}}{n_{ver}} \right\rceil
+    P_{miss, RSID} \le \frac{k_{outer}-1}{Q^{m}}
 \end{equation}
-The system generates the verifier $v$ by evaluating the polynomial $P_S(x) = \sum_{i=0}^{k-1} s_i x^i$ at the shared seed $r$.
+where $k_{outer}$ denotes the number of symbols in the outer code. Since $Q^m = (2^{n_{ver}})^m$, the denominator grows exponentially with the depth $m$. Even for a moderate depth of $m=2$, the expanded field $Q^2$ far exceeds the typical state dimensionality $k_{outer}$ found in robotic telemetry. In the regime where $Q^m \gg k_{outer}$, the term $(k_{outer}-1)/Q^m$ becomes negligible, allowing the algebraic verifier's reliability to be governed primarily by the entropy of the final truncated output rather than the data size. 
 
-For the experimental evaluation and latency modeling, we apply the theoretical upper bound derived in Chapter~\ref{ch:background} (Schwartz-Zippel Lemma). The probability of a Type II error (collision) is strictly modeled as:
-\begin{equation}
-    P_{miss}^{RS} \leq \frac{k}{q} = \frac{\lceil n_{data}/n_{ver} \rceil}{2^{n_{ver}}}
-    \label{eq:rsid_bound}
-\end{equation}
-This equation serves as the reliability constraint for the design: to ensure robust identification ($P_{miss} \ll 1$), the verifier length $n_{ver}$ is selected such that the field size exponentially exceeds the data complexity $k$.
-
-\subsection{Cryptographic Construction and Error Analysis (SHA-256)}
-\label{sec:sha256_proof}
-
-Unlike the algebraic structure of RS-ID, the security of hash-based identification relies on computational hardness assumptions. We verify the state using a truncated cryptographic hash function (SHA-256):
-\begin{equation}
-    v = \text{Truncate}(\text{SHA-256}(S || r), n_{ver})
-    \label{eq:sha_verifier}
-\end{equation}
-where $||$ denotes concatenation with the random seed $r$.
-
-To analyze the collision probability theoretically, we adopt the \gls{rom} paradigm introduced by Bellare and Rogaway~\cite{bellare1993random}. In this model, the hash function $H(\cdot)$ is idealized as a mathematical oracle that maps every unique input query to a response selected uniformly and independently from the output domain $\{0, 1\}^{n_{ver}}$.
-
-Under the \gls{rom}, for any robot state $S$, the hash output $H(S||r)$ is a random variable following a uniform distribution over the verifier space of size $N = 2^{n_{ver}}$.
-Given a pre-calculated verifier $\hat{v}$ from the Digital Twin, the probability of a collision (Type II error) is equivalent to the probability that a uniformly selected random value hits a specific target in the sample space.
-\begin{equation}
-    P_{miss}^{SHA} = \Pr[H(S||r) = \hat{v}] = \frac{1}{|\{0, 1\}^{n_{ver}}|} = \frac{1}{2^{n_{ver}}}
-    \label{eq:sha_bound}
-\end{equation}
-This derivation relies on the property that in a uniform distribution, the probability of any single outcome is the reciprocal of the sample space size.
-
-Comparing Equation~\eqref{eq:rsid_bound} with Equation~\eqref{eq:sha_bound} highlights a key structural difference. In \gls{rsid}, the error probability scales linearly with the data size ($k \approx n_{data}/n_{ver}$), reflecting the geometric fact that higher-degree polynomials admit more roots. Under the \gls{rom} assumption, the \gls{sha} collision probability is invariant to $n_{data}$. As a result, the cryptographic approach remains well-behaved for large state vectors (e.g., \gls{lidar} point clouds), but it replaces the unconditional Schwartz--Zippel guarantee with a computational idealization.
+Consequently, concatenated \gls{rsid} provides a deterministic error bound that is numerically comparable to the $2^{-n_{ver}}$ statistical performance of \gls{sha}-256. This structural decoupling allows the protocol to approach the theoretical double exponential limit established by Ahlswede and Dueck, enabling the verifier length to scale as $O(\log \log k)$ rather than $O(\log k)$. For high-dimensional sensor data, this yields collision resistance comparable to cryptographic hashing while preserving the advantage of provable safety bounds.
 
 \section{End-to-End Latency Model}
 \label{sec:latency_model}
 
-Based on the data flows defined in Section~\ref{sec:system_model}, we mathematically formulate the expected latency.
+Based on the data flows defined in Section~\ref{sec:system_model}, the expected latency is formulated as follows.
 
 Since the traditional flow always executes the full transmission, its latency is deterministic:
 \begin{equation}
@@ -93,129 +63,106 @@ Since the traditional flow always executes the full transmission, its latency is
 \end{equation}
 where $B$ is the channel bandwidth.
 
-In contrast, the ID flow is probabilistic. The total time includes the mandatory encoding and verifier transmission, plus the conditional penalty for fallback. Matching the stages in Figure~\ref{fig:id_flow}:
+In contrast, the \gls{id} flow is probabilistic. The total time includes the mandatory encoding and verifier transmission, plus the conditional penalty for fallback. Matching the stages in Figure~\ref{fig:id_flow}:
 \begin{equation}
     T_{ID} = \underbrace{t_{ver}}_{\text{Encode}} + \underbrace{\frac{n_{ver}}{B}}_{\text{Transmit Verifier}} + \underbrace{p_{desync}(1 - p_{miss}) \frac{n_{data}}{B}}_{\text{Sync (Fallback Penalty)}}
 \end{equation}
 
-Here, $t_{ver}$ denotes the computation time of the Encode stage, $p_{desync}$ is the probability that the DT prediction fails ($S_t \neq \hat{S}_t$), and the fallback penalty $(1 - p_{miss}) \frac{n_{data}}{B}$ is incurred only when a desynchronization exists and is successfully detected by the verifier.
+Here, $t_{ver}$ denotes the computation time of the Encode stage, $p_{desync}$ is the probability that the \gls{dt} prediction fails ($S_t \neq \hat{S}_t$), and the fallback penalty $(1 - p_{miss}) \frac{n_{data}}{B}$ is incurred only when a desynchronization exists and is successfully detected by the verifier.
 
-This model highlights the fundamental trade-off: ID reduces the transmission term from $\frac{n_{data}}{B}$ to $\frac{n_{ver}}{B}$ but adds a computational cost $t_{ver}$. Therefore, ID is advantageous only when the bandwidth $B$ is limited (making transmission expensive) or when the prediction accuracy is high (keeping $p_{desync}$ small).
+The model highlights the key trade-off: \gls{id} reduces the transmission term from $\frac{n_{data}}{B}$ to $\frac{n_{ver}}{B}$ but adds a computational cost $t_{ver}$. Therefore, \gls{id} is advantageous when the bandwidth $B$ is limited (making transmission expensive) or when the prediction accuracy is high (keeping $p_{desync}$ small).
 
-\section{Tolerance-Based Verification (K-ID)}
+\section[Tolerance-Based Verification (K-ID)]{Tolerance-Based Verification (\glsentryshort{kid})}
 \label{sec:kid_model}
 
-The ID data flow described in Section~\ref{sec:system_model} assumes a strict equality check between a single predicted state $\hat{S}_t$ and the true state $S_t$. In practice, however, many cyber-physical systems can tolerate bounded deviations without requiring a full resynchronization. We therefore extend the verification stage to a tolerance-based rule, widely referred to as \gls{kid} in information theory literature~\cite{Ahlswede_KID}.
+The \gls{id} data flow described in Section~\ref{sec:system_model} assumes a strict equality check between a single predicted state $\hat{S}_t$ and the true state $S_t$. In practice, many cyber-physical systems tolerate bounded deviations without requiring a full resynchronization. The verification stage is therefore extended to a tolerance-based rule, widely referred to as \gls{kid} in the information-theory literature~\cite{Ahlswede_KID}.
 
-Figure~\ref{fig:k-id} illustrates the resulting protocol. The operational stages mirror the standard ID flow, but the decision criterion at the receiver is generalized: instead of checking equality against a single predicted verifier $\hat{v}$, the \gls{dt} accepts if the received verifier matches any candidate in a precomputed set corresponding to the tolerable neighborhood of $\hat{S}_t$.
+Figure~\ref{fig:k-id} illustrates the resulting protocol. The operational stages mirror the standard \gls{id} flow, but the decision criterion at the receiver is generalized: instead of checking equality against a single predicted verifier $\hat{v}$, the \gls{dt} accepts if the received verifier matches any candidate in a precomputed set corresponding to the tolerable neighborhood of $\hat{S}_t$.
 
 \begin{figure}[H]
     \centering
     % Ensure you have the file 'figures/ID.png'
     \includegraphics[width=0.8\textwidth]{figures/k-id.png}
-    \caption{Data flow of K-ID Synchronization: High-bandwidth transmission is replaced by local encoding and conditional fallback.}
+    \caption{Data flow of \glsentryshort{kid} Synchronization: High-bandwidth transmission is replaced by local encoding and conditional fallback.}
     \label{fig:k-id}
 \end{figure}
 
-\subsection{Acceptance Set and Quantization}
+\section{System Model of Semantic Identification}
+\label{sec:semantic_system_model}
+
+\subsection{Acceptance Set Mapping and Cardinality}
 \label{subsec:acceptance_set}
 
-Let $\mathcal{Q}$ denote the domain of quantized states achievable by the robot, with a discretization resolution $\Delta$. Given the DT prediction $\hat{S}_t$ and a physical tolerance radius $r$, the DT defines a semantic acceptance set $\mathcal{A}(\hat{S}_t)$ containing all quantized states within the radius:
+The \gls{kid} protocol operationalizes semantic synchronization by mapping a physical tolerance radius $R$ into a discrete hypothesis set. Let $\mathcal{Q}$ denote the domain of quantized states achievable by the robot, characterized by a discretization resolution $\Delta$. For a given \gls{dt} prediction $\hat{S}_t$, the semantic acceptance set $\mathcal{A}_R$ is defined as the collection of all quantized states $s \in \mathcal{Q}$ such that $\lVert s - \hat{S}_t \rVert \le R$.
+
+Consistent with the terminology established in Section~\ref{subsec:kid_saturation}, the cardinality of this set, $K = |\mathcal{A}_R|$, represents the message set size that the identification channel must accommodate. For the one-dimensional state representation used in our experiments, this mapping follows:
 \begin{equation}
-    \mathcal{A}(\hat{S}_t) = \{ s \in \mathcal{Q} \mid \lVert s - \hat{S}_t \rVert \le r \}.
+    K \approx \frac{2R}{\Delta} + 1.
 \end{equation}
-The cardinality of this set is denoted by $K = |\mathcal{A}(\hat{S}_t)|$. Note that in this thesis, we refer to the scheme as K-ID following standard terminology~\cite{Ahlswede_KID}, where $K$ represents the size of the hypothesis set.
+This relationship links the physical control requirements ($R, \Delta$) to the theoretical reliability limits of the verifier through the induced acceptance-set size $K$.
 
-The Robot computes the verifier $v$ using the selected encoding scheme $Enc(\cdot)$ on the current quantized state $S_t$. Simultaneously, the DT pre-computes the set of valid verifiers $\mathcal{V}_{set}$ corresponding to all candidates in $\mathcal{A}(\hat{S}_t)$:
+
+
+\subsection{Verification and Fallback Logic}
+
+The synchronization process is executed as a two-stage verification task. At each time step, the Robot computes a single verifier $v = Enc(S_t, r)$, where $r$ is the shared seed derived from the common randomness source described in Section~\ref{sec:common_randomness}. Simultaneously, the \gls{dt} pre-computes a set of valid verifiers $\mathcal{V}_{set} = \{Enc(s, r) \mid s \in \mathcal{A}_R\}$ corresponding to all candidates within the acceptance set.
+
+The \gls{dt} confirms synchronization if $v \in \mathcal{V}_{set}$. This condition implies that the robot's state, while potentially deviating from the point prediction $\hat{S}_t$, remains within the semantically acceptable boundary $R$. If the received verifier is not present in $\mathcal{V}_{set}$, the \gls{dt} identifies a safety violation and triggers a full-state fallback transmission to resynchronize the model.
+
+\subsection[K-ID Reliability and Latency Trade-offs]{\glsentryshort{kid} Reliability and Latency Trade-offs}
+\label{subsec:reliability_latency_model}
+
+Based on the theoretical bounds derived in Section~\ref{subsec:error_models}, the miss probability for \gls{kid} converges for both \gls{sha}-256 and concatenated \gls{rsid} backends. By applying the union bound over the $K$ candidates, the system-level reliability follows:
 \begin{equation}
-    \mathcal{V}_{set} = \{ Enc(s) \mid s \in \mathcal{A}(\hat{S}_t) \}.
+    p_{miss}(R, n_{ver}) \approx \frac{K}{2^{n_{ver}}}.
+    \label{eq:pmiss_kid_law}
 \end{equation}
+This implies that the safety risk scales linearly with the acceptance-set size $K$, emphasizing the importance of the entropy-saturation constraint ($K < 2^{n_{ver}}$) to avoid deterministic synchronization failure.
 
-The specific construction of the encoding function $Enc(s)$ depends on the chosen algorithm. For SHA-256, we define $Enc(s)=\mathrm{Truncate}(\mathrm{SHA256}(s), n_{ver})$. For RS-ID, we define $Enc(s)=M_s(\beta)$, where $M_s(x)$ is the polynomial representation of state $s$ and $\beta \in \mathbb{F}_{2^{n_{ver}}}$ is the designated evaluation point (tag position).
-
-The DT accepts if the received verifier $v \in \mathcal{V}_{set}$. This implies the robot is in a "safe" state consistent with the tolerance region. Otherwise, it triggers fallback.
-
-\subsection{Collision Probability Analysis}
-Define an unsafe event as the true state lying outside the tolerance region, i.e., $S_t \notin \mathcal{A}(\hat{S}_t)$. A miss (false negative) occurs when the verifier $v(S_t)$ of an unsafe state coincidentally falls into the set of valid verifiers $\mathcal{V}_{set}$. The miss probability is bounded differently depending on the encoding mechanism.
-
-\subsubsection{Case 1: Cryptographic Hashing (SHA-256)}
-Under the Random Oracle assumption, the verifier for an unknown unsafe state is uniformly distributed over the code space $\{0,1\}^{n_{ver}}$. By the union bound, the miss probability is simply the fraction of the space covered by the $K$ valid candidates:
+To relate these parameters to end-to-end performance, the expected latency $T_{KID}$ is defined as a function of the tolerance radius $R$. Assuming the prediction error follows a Gaussian distribution $\mathcal{N}(0, \sigma^2)$, the probability of an unsafe deviation is $p_{unsafe}(R) = \Pr(|E_t| > R)$. The total latency is then modeled as:
 \begin{equation}
-    p_{miss}^{SHA} \le \sum_{s \in \mathcal{A}(\hat{S}_t)} \Pr[v(S_t) = v(s)] \approx \frac{K}{2^{n_{ver}}}.
-    \label{eq:bound_sha}
+    T_{KID} = t_{enc} + t_{dec}(K) + \frac{n_{ver}}{B} + p_{unsafe}(R)(1 - p_{miss})\frac{n_{data}}{B},
+    \label{eq:kid_latency_final}
 \end{equation}
-Crucially, this bound is independent of the data payload size $n_{data}$, making it scalable for large state vectors.
+where $t_{dec}(K)$ represents the decoding complexity, which scales linearly with the set size $K$. The expression highlights the core optimization problem: increasing $R$ reduces the frequency of bandwidth-heavy fallbacks ($p_{unsafe} \cdot n_{data}/B$) but increases both the computational overhead $t_{dec}(K)$ and the collision risk $p_{miss}$.
 
-\subsubsection{Case 2: Algebraic Coding (RS-ID)}
-For RS-ID, the verification relies on polynomial evaluation over a finite field $\mathbb{F}_q$, where $q = 2^{n_{ver}}$. As established in Section~\ref{subsec:rsid_geometry}, two distinct messages of length $n_{data}$ (interpreted as polynomials of degree $< n_{data}$) collide in at most $n_{data}-1$ points.
-When checking against a set of $K$ valid candidates, the worst-case collision probability is the sum of collision probabilities with each candidate:
-\begin{equation}
-    p_{miss}^{RSID} \le \sum_{s \in \mathcal{A}(\hat{S}_t)} \frac{n_{data}-1}{q} = K \cdot \frac{n_{data}-1}{2^{n_{ver}}}.
-    \label{eq:bound_rsid}
-\end{equation}
-Comparing Eq.~\eqref{eq:bound_sha} and Eq.~\eqref{eq:bound_rsid}, we observe that RS-ID introduces a penalty factor proportional to the payload size ($n_{data}$). While RS-ID provides a deterministic bound, this bound loosens linearly with data size, making it less efficient than SHA-256 for K-ID when $n_{data}$ is large, unless the field size $n_{ver}$ is increased strictly.
 
-\subsection{Latency and Safety Analysis}
-To connect the tolerance rule to system performance, we define the unsafe probability $p_{unsafe}(r)$ as the likelihood that the true state $S_t$ falls outside the acceptance radius $r$. Assuming the prediction error $e = S_t - \hat{S}_t$ follows a Zero-Mean Gaussian distribution $\mathcal{N}(0, \sigma^2)$, this probability is:
-\begin{equation}
-    p_{unsafe}(r) = \Pr[|e| > r] = 2\left(1 - \Phi\left(\frac{r}{\sigma}\right)\right).
-\end{equation}
-where $\Phi(\cdot)$ is the CDF of the standard normal distribution.
 
-A fallback (full transmission) is triggered only when the Digital Twin correctly detects an unsafe state. This occurs when the state is unsafe AND the hash verification does not generate a false positive (miss). The probability of fallback is therefore:
-\begin{equation}
-    p_{fallback} = p_{unsafe}(r) \cdot (1 - p_{miss}).
-\end{equation}
+\subsection{Quantization and Computational Scalability}
 
-The expected end-to-end latency $T_{KID}$ is derived by substituting this fallback rate into the general latency structure defined in Section~\ref{sec:latency_model}:
-\begin{equation}
-    T_{KID} = t_{ver} + \frac{n_{ver}}{B} + p_{unsafe}(r)(1 - p_{miss})\frac{n_{data}}{B}.
-    \label{eq:kid_latency}
-\end{equation}
+The choice of resolution $\Delta$ dictates the granularity of the safety zone and the resulting computational workload. For a fixed physical radius $R$, driving $\Delta \to 0$ leads to a hyperbolic increase in $K$. Since the \gls{dt} must perform $K$ verifier evaluations per tick, the decoder latency $t_{dec}(K)$ can quickly saturate the real-time processing budget of edge devices. Thus, $\Delta$ is treated as a constraint satisfaction variable: it must be sufficiently fine to meet control fidelity requirements while remaining large enough to ensure $t_{dec}(K)$ fits within the sampling interval $T_{tick}$.
 
-This analytical model elucidates the central trade-off explored in this thesis: increasing the tolerance radius $r$ reduces $p_{unsafe}(r)$ (which lowers latency by reducing fallbacks), but simultaneously enlarges the candidate set size $K$, which increases $p_{miss}$ (compromising safety). The empirical parameter sweep in Chapter~\ref{ch:results} instantiates this model to visualize the safety--latency optimization surface.
-
-\subsection{Sensitivity Analysis of Quantization Resolution}
-\label{subsec:resolution_analysis}
-
-While the tolerance parameter $K$ determines the physical scope of the safety zone, the granularity of this coverage is governed by the quantization resolution $\Delta$. The choice of $\Delta$ imposes a fundamental trade-off between physical control fidelity and decoder computational scalability.
-
-The primary determinant of the decoder's computational workload is the cardinality of the acceptance set $|\mathcal{A}_K|$, which dictates the number of hash evaluations required per prediction step. For a fixed physical tolerance radius $R_{phy}$---such as the ``Safe Harbor'' radius required to encapsulate bounded noise---the set size scales inversely with the resolution:
-\begin{equation}
-    |\mathcal{A}_K| \approx \frac{2 R_{phy}}{\Delta}
-\end{equation}
-This hyperbolic relationship implies that minimizing quantization error by driving $\Delta \to 0$ inherently leads to an explosion in the computational burden on the Digital Twin. As the resolution becomes finer, the linear increase in fidelity incurs a non-linear penalty in processing overhead, potentially creating a bottleneck for high-frequency control loops.
-
-Consequently, the evaluation of system safety must extend beyond probabilistic collision risk to encompass computational feasibility. We formulate the optimization of $\Delta$ as a constraint satisfaction problem rather than a simple minimization of error. The objective is to identify the finest resolution $\Delta_{min}$ such that the worst-case decoder latency $T_{dec}(R_{max}, \Delta)$ remains bounded by the strict real-time control budget $T_{budget}$ (e.g., $< 1.5$ ms). This framework allows us to identify the operational limit that maximizes state precision without saturating the edge processor's computational resources.
 
 \section{Dynamic Evaluation Model: Random Walk with Drift}
 \label{sec:random_walk_model}
 
-The static state model utilized in the parameter sweep (assuming i.i.d. samples of $S_t$) effectively estimates per-tick miss probabilities; however, it fails to capture error accumulation over time. To investigate continuous unsafe operation and boundary breaches resulting from missed detections, we introduce a time-correlated dynamic model wherein the robot drifts stochastically while the \gls{dt} maintains its last validated state via a zero-order hold.
+While the static parameter sweeps presented in Section~\ref{sec:reliability_limits} estimate instantaneous miss probabilities, they do not capture temporal correlation in continuous control loops. To study the accumulation of unsynchronized drift and resulting boundary breaches, a time-correlated dynamic model is introduced. In this framework, the physical robot drifts stochastically while the \gls{dt} maintains a local state estimate via \gls{zoh} prediction.
 
-We model the scalar robot state evolution as a discrete-time random walk:
+The scalar state evolution of the robot is modeled as a discrete-time random walk:
 \begin{equation}
     S_t = S_{t-1} + \delta_t,
 \end{equation}
-where $\delta_t$ denotes the process noise. We consider two noise profiles: a uniform increment $\delta_t\sim\mathcal{U}(-\Delta_{step},\Delta_{step})$ representing hard kinematic constraints, and a Gaussian increment $\delta_t\sim\mathcal{N}(0,\sigma_{step}^2)$ capturing unbounded disturbances.
+where $\delta_t$ represents the process noise. Two noise profiles are considered: a uniform increment $\delta_t \sim \mathcal{U}(-\Delta_{step}, \Delta_{step})$ representing constrained kinematic bounds, and a Gaussian increment $\delta_t \sim \mathcal{N}(0, \sigma_{step}^2)$ representing unbounded disturbances.
 
-On the receiver side, the \gls{dt} employs a \gls{zoh} predictor logic. In the absence of an explicit correction packet, it assumes the synchronization is maintained:
+On the receiver side, the \gls{dt} assumes state consistency in the absence of explicit updates. Under the \gls{zoh} assumption, the prediction remains constant between corrections:
 \begin{equation}
-    \hat{S}_t = \hat{S}_{t-1} \quad \text{unless a fallback correction is triggered.}
+    \hat{S}_t = \hat{S}_{t-1}, \quad \text{for } t \in [t_k, t_{k+1}),
 \end{equation}
-Consequently, the instantaneous drift error $E_t = |S_t-\hat{S}_t|$ grows monotonically between corrections.
+where $t_k$ is the timestamp of the last successful full-state synchronization. Consequently, the instantaneous synchronization error $E_t = |S_t - \hat{S}_t|$ diverges stochastically as the physical system drifts away from the frozen digital estimate.
 
-At each simulation tick, the protocol enforces the \gls{kid} tolerance gate:
+
+
+At each discrete simulation tick, the protocol enforces the \gls{kid} semantic gate based on the physical tolerance $R$. The transmission logic is defined as:
 \begin{equation}
     \begin{cases}
-        \text{if } E_t \le K: & \text{Silent (masked drift),} \\
-        \text{if } E_t > K: & \text{Transmission and Verification.}
+        |E_t| \le R: & \text{Silence (masked drift),} \\
+        |E_t| > R: & \text{Verifier Transmission and Verification.}
     \end{cases}
 \end{equation}
-When $E_t > K$, the Robot transmits a verifier. The \gls{dt} checks this verifier against its local estimate $\hat{S}_t$. If a hash collision occurs (with probability $p_{miss,K}$), the system suffers a safety miss: the \gls{dt} erroneously accepts the outdated $\hat{S}_t$, allowing the drift to accumulate further. Conversely, if no collision occurs, the \gls{dt} detects the discrepancy, triggers a fallback, and resets $\hat{S}_t \leftarrow S_t$.
+When $|E_t| > R$, the robot transmits a verifier $v_t$. The \gls{dt} validates $v_t$ against the acceptance set $\mathcal{A}_R$ centered at $\hat{S}_t$. If a collision occurs (Type~II error), the system suffers a \textit{safety miss}: the \gls{dt} erroneously accepts the outdated state $\hat{S}_t$, allowing the unsynchronized drift to persist and potentially escalate. Conversely, a successful verification triggers a fallback, resetting the estimate $\hat{S}_t \leftarrow S_t$ and restoring the synchronization error to zero.
 
-To align the dynamic simulator with the Random Oracle analysis in Section~\ref{sec:kid_model}, we model the probability of collision during verification events (i.e., ticks where $E_t > K$) using the acceptance-set proxy:
+To align this dynamic simulation with the reliability analysis established in Chapter~2, the probability of collision during verification events is governed by the entropy-saturation limit. As established in Equation~\ref{eq:pmiss_kid_law}, the miss probability is approximated by:
 \begin{equation}
-    p_{miss,K}^{SHA} \approx \frac{|\mathcal{A}_K|}{2^{n_{ver}}}.
+    p_{miss}(R, n_{ver}) \approx \frac{K}{2^{n_{ver}}},
 \end{equation}
-Here, $|\mathcal{A}_K| \approx 2\lfloor K/\Delta\rfloor+1$ represents the cardinality of the acceptance set over the state domain quantized with resolution $\Delta$.
+where $K = |\mathcal{A}_R| \approx 2R/\Delta + 1$ denotes the cardinality of the semantic hypothesis set. This dynamic model allows for the evaluation of the \gls{sri}, characterizing how \gls{kid} transforms continuous physical motion into sporadic, bursty communication traffic while managing the risk of undetected boundary breaches.

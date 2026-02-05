@@ -38,6 +38,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from .common import *
 import numpy as np
+import hashlib
 
 
 class IdEncoder(ABC):
@@ -237,6 +238,20 @@ class RSIDEncoder(IdEncoder):
         self.idcodes = get_idcodes_instance(self.gf_exp)
         if self.gf_exp <= 16:
             self.idcodes.generate_gf_outer(self.gf_exp)
+
+        # Cache GF tables and constants to avoid per-call conversion overhead.
+        if self.gf_exp <= 8:
+            self._gf_dtype = np.uint8
+        elif self.gf_exp <= 16:
+            self._gf_dtype = np.uint16
+        elif self.gf_exp <= 32:
+            self._gf_dtype = np.uint32
+        else:
+            self._gf_dtype = np.uint64
+
+        self._gf_range = 1 << self.gf_exp
+        self._exp_arr = np.asarray(self.idcodes.get_exp_arr(), dtype=self._gf_dtype)
+        self._log_arr = np.asarray(self.idcodes.get_log_arr(), dtype=self._gf_dtype)
     
     def set_parameters(self, parameters: Parameters) -> None:
         """Update parameters and reinitialize idcodes if necessary."""
@@ -258,26 +273,13 @@ class RSIDEncoder(IdEncoder):
         """
         if not message:
             raise ValueError("Message cannot be empty")
-            
-        # Determine appropriate dtype for GF tables based on gf_exp
-        if self.gf_exp <= 8:
-            gf_dtype = np.uint8
-        elif self.gf_exp <= 16:
-            gf_dtype = np.uint16
-        elif self.gf_exp <= 32:
-            gf_dtype = np.uint32
-        else:
-            gf_dtype = np.uint64
-        # Obtain GF lookup tables and convert to numpy arrays of correct dtype
-        exp_arr = np.asarray(self.idcodes.get_exp_arr(), dtype=gf_dtype)
-        log_arr = np.asarray(self.idcodes.get_log_arr(), dtype=gf_dtype)
+
         # Map message symbols into valid GF range to avoid undefined behaviour
-        gf_range = 1 << self.gf_exp
-        msg_mod = [int(x) % gf_range for x in message]
+        msg_mod = [int(x) % self._gf_range for x in message]
 
         tags = []
         for tag_pos in self.parameters["tag_pos"]:
-            tags.append(self.idcodes.rsid(msg_mod, tag_pos, exp_arr, log_arr, self.gf_exp))
+            tags.append(self.idcodes.rsid(msg_mod, tag_pos, self._exp_arr, self._log_arr, self.gf_exp))
         return tags
 
 
@@ -358,6 +360,22 @@ class RS2IDEncoder(IdEncoder):
             self.idcodes.generate_gf_inner(self.gf_exp)
         elif self.gf_exp <= 32:
             self.idcodes.generate_gf_inner(self.gf_exp)
+
+        # Cache GF tables and constants to avoid per-call conversion overhead.
+        if self.gf_exp <= 8:
+            self._gf_dtype = np.uint8
+        elif self.gf_exp <= 16:
+            self._gf_dtype = np.uint16
+        elif self.gf_exp <= 32:
+            self._gf_dtype = np.uint32
+        else:
+            self._gf_dtype = np.uint64
+
+        self._gf_range = 1 << self.gf_exp
+        self._exp_arr = np.asarray(self.idcodes.get_exp_arr(), dtype=self._gf_dtype)
+        self._log_arr = np.asarray(self.idcodes.get_log_arr(), dtype=self._gf_dtype)
+        self._exp_arr_in = np.asarray(self.idcodes.get_exp_arr_in(), dtype=self._gf_dtype)
+        self._log_arr_in = np.asarray(self.idcodes.get_log_arr_in(), dtype=self._gf_dtype)
     
     def set_parameters(self, parameters: Parameters) -> None:
         """Update parameters and reinitialize idcodes."""
@@ -383,30 +401,17 @@ class RS2IDEncoder(IdEncoder):
         tag_pos = self.parameters["tag_pos"][0]  # Use first position only
         tag_pos_in = self.parameters["tag_pos_in"][0]  # Use first inner position only
         
-        # Determine appropriate dtype for GF tables based on gf_exp (effective exponent)
-        if self.gf_exp <= 8:
-            gf_dtype = np.uint8
-        elif self.gf_exp <= 16:
-            gf_dtype = np.uint16
-        elif self.gf_exp <= 32:
-            gf_dtype = np.uint32
-        else:
-            gf_dtype = np.uint64
-
-        # Outer and inner GF tables
-        exp_arr = np.asarray(self.idcodes.get_exp_arr(), dtype=gf_dtype)
-        log_arr = np.asarray(self.idcodes.get_log_arr(), dtype=gf_dtype)
-        exp_arr_in = np.asarray(self.idcodes.get_exp_arr_in(), dtype=gf_dtype)
-        log_arr_in = np.asarray(self.idcodes.get_log_arr_in(), dtype=gf_dtype)
+        # Map message symbols into valid GF range to avoid undefined behaviour.
+        msg_mod = [int(x) % self._gf_range for x in message]
 
         result = self.idcodes.rs2id(
-            message,
+            msg_mod,
             tag_pos,
             tag_pos_in,
-            exp_arr,
-            log_arr,
-            exp_arr_in,
-            log_arr_in,
+            self._exp_arr,
+            self._log_arr,
+            self._exp_arr_in,
+            self._log_arr_in,
             self.gf_exp,
         )
         return result
@@ -681,7 +686,15 @@ class SHA256IDEncoder(IdEncoder):
     def _init_idcodes(self) -> None:
         """Initialize idcodes for SHA256 operations."""
         self.gf_exp = self.parameters["gf_exp"]
-        self.idcodes = get_idcodes_instance(self.gf_exp)
+        self.backend = str(self.parameters.get("backend", "idcodes")).lower()
+        self.idcodes = None
+        if self.backend == "idcodes":
+            self.idcodes = get_idcodes_instance(self.gf_exp)
+        elif self.backend == "hashlib":
+            # Use Python/OpenSSL-backed SHA-256. No idcodes instance needed.
+            self.idcodes = None
+        else:
+            raise ValueError(f"Unsupported SHA256 backend: {self.backend}. Use 'idcodes' or 'hashlib'.")
     
     def set_parameters(self, parameters: Parameters) -> None:
         """Update parameters and reinitialize idcodes."""
@@ -704,8 +717,21 @@ class SHA256IDEncoder(IdEncoder):
         if not message:
             raise ValueError("Message cannot be empty")
             
-        result = self.idcodes.sha256id(message, self.gf_exp)
-        return result
+        if self.backend == "hashlib":
+            # Fast path: message is a list of byte values.
+            try:
+                msg_bytes = bytes(message)
+            except ValueError:
+                # Fallback if values are outside 0..255.
+                msg_bytes = bytes([(int(x) % 256) for x in message])
+
+            digest = hashlib.sha256(msg_bytes).digest()
+            # Truncate uniformly to gf_exp bits (tag in [0, 2^{gf_exp}-1]).
+            mask = (1 << int(self.gf_exp)) - 1
+            return int.from_bytes(digest, byteorder="little", signed=False) & mask
+
+        # Default: use the idcodes backend (legacy behavior).
+        return self.idcodes.sha256id(message, self.gf_exp)
 
 
 class SHA256IDVerifier(IdVerifier):

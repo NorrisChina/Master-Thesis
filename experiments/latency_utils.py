@@ -58,21 +58,17 @@ def add_advantage_shading_by_baseline(
     if label_regions:
         # Put small labels near the left side; works for both linear and log axes.
         x0 = float(x[0])
-        y_mid_adv = float(np.clip(np.median(np.minimum(baseline, y_hi)), lo, hi))
-        y_mid_pen = float(np.clip(np.median(np.maximum(baseline, y_lo)), lo, hi))
-
-        # Nudge labels away from the baseline.
-        y_adv = max(lo, min(hi, y_mid_adv * 0.75))
-        y_pen = max(lo, min(hi, y_mid_pen * 1.25))
-
+        # Advantage贴绿色底部，Penalty贴红色顶部
+        y_adv = lo  # 绿色底部
+        y_pen = hi  # 红色顶部
         ax.text(
             x0,
             y_adv,
             "Advantage",
-            fontsize=9,
+            fontsize=12,
             color="#1b5e20",
             alpha=0.9,
-            va="center",
+            va="bottom",
             ha="left",
             zorder=5,
         )
@@ -80,10 +76,10 @@ def add_advantage_shading_by_baseline(
             x0,
             y_pen,
             "Penalty",
-            fontsize=9,
+            fontsize=12,
             color="#7f1d1d",
             alpha=0.9,
-            va="center",
+            va="top",
             ha="left",
             zorder=5,
         )
@@ -105,11 +101,15 @@ def latency_traditional(B: np.ndarray, n_data_bits: float) -> np.ndarray:
 
 
 def latency_id(B: np.ndarray, n_data_bits: float, n_ver_bits: float, t_ver: float, p_desync: float, p_miss: float) -> np.ndarray:
-    return t_ver + (n_ver_bits + p_desync * (1.0 - p_miss) * n_data_bits) / B
+    # NOTE: We intentionally do *not* let p_miss reduce the expected fallback
+    # transmission when computing latency. A miss corresponds to an undetected
+    # desync (incorrect synchronization), not a legitimate performance win.
+    return t_ver + (n_ver_bits + p_desync * n_data_bits) / B
 
 
 def break_even_bandwidth(n_data_bits: float, n_ver_bits: float, t_ver: float, p_desync: float, p_miss: float) -> float | None:
-    num = (n_data_bits * (1.0 - p_desync * (1.0 - p_miss)) - n_ver_bits)
+    # Keep the break-even consistent with latency_id() above (ignore p_miss in latency).
+    num = (n_data_bits * (1.0 - p_desync) - n_ver_bits)
     if t_ver <= 0:
         return None
     B = num / t_ver
