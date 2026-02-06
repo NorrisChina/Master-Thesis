@@ -1,7 +1,7 @@
 \chapter{Background and Related Work}
 \label{ch:background}
 
-This chapter reviews the transition from classical data transmission to identification-based synchronization, positioning it within the broader context of semantic communication~\cite{zhang2025semantic} for \gls{sixg} networks. It evaluates alternative synchronization strategies, such as differential encoding and event-triggered control, to motivate the engineering need for the identification (\gls{id}) paradigm. It then compares practical encoding mechanisms by contrasting the avalanche dynamics of cryptographic hashing with the geometric properties of algebraic coding. Finally, it discusses how this paradigm generalizes to \gls{kid}, where strict equality constraints are relaxed to semantic safety sets to accommodate natural variability in physical control loops.
+This chapter reviews the transition from classical data transmission to identification-based synchronization, positioning it within the broader context of semantic communication~\cite{zhang2025semantic} for \gls{sixg} networks. It evaluates alternative synchronization strategies, such as differential encoding and event-triggered control, to motivate the engineering need for the identification (\gls{id}) approach. It then compares practical encoding mechanisms by contrasting the avalanche dynamics of cryptographic hashing with the geometric properties of algebraic coding. Finally, it discusses how this approach generalizes to \gls{kid}, where strict equality constraints are relaxed to semantic safety sets to accommodate natural variability in physical control loops.
 
 % ==================================================================================
 % Section 2.1: Macro background (semantic communication and 6G)
@@ -11,7 +11,7 @@ This chapter reviews the transition from classical data transmission to identifi
 
 In time-critical control loops, the utility of a \gls{dt} depends on its synchronization with the physical asset. Conventional protocols treat this as a data reconstruction problem, where the robot periodically transmits its full state vector $S_t$ (e.g., joint angles and velocities) to the \gls{dt}. While robust, this approach overlooks a key redundancy: the \gls{dt}, using its internal kinematic model, already maintains a prediction $\hat{S}_t$ of the robot's state. The communication task is therefore not to inform the \gls{dt} ``where the robot is,'' but to verify ``whether the \gls{dt}'s prediction is correct.''
 
-This perspective is consistent with the paradigm of semantic communication~\cite{strinati2024goal} in \gls{sixg} networks. Unlike classical Shannon-type communication, which emphasizes accurate reconstruction, semantic communication emphasizes information that matters for the receiver's goal. In the context of \gls{urllc}, this suggests prioritizing ``actionable'' information (such as safety violations) over raw telemetry.
+This perspective is consistent with the semantic-communication view~\cite{strinati2024goal} in \gls{sixg} networks. Unlike classical Shannon-type communication, which emphasizes accurate reconstruction, semantic communication emphasizes information that matters for the receiver's goal. In the context of \gls{urllc}, this suggests prioritizing ``actionable'' information (such as safety violations) over raw telemetry.
 
 In this setting, the coding objective shifts from Shannon's transmission capacity to the identification capacity defined by Ahlswede and Dueck~\cite{ahlswede1989}. In transmission, each possible state must map to a disjoint decoding set, limiting the number of distinguishable states to $2^{nR}$ for blocklength $n$. In contrast, identification permits overlaps between decoding sets, as long as pairwise intersections are statistically negligible. This relaxation enables a doubly exponential growth in identifiable states ($2^{2^{nR}}$), meaning that short verifiers can discriminate among a large state space while allowing a vanishingly small error probability.
 
@@ -157,14 +157,14 @@ The transition from exact identification to the \gls{kid} framework requires a r
 \subsection{Error Models and the Scaling of \texorpdfstring{$p_{miss}$}{p\_miss}}
 \label{subsec:error_models}
 
-The reliability of \gls{id}-based synchronization is governed by two distinct error paradigms. For cryptographic hashing via \gls{sha}-256, the verifier is analyzed under the Random Oracle Model, where a truncated digest of length $n_{ver}$ behaves as a uniform random mapping. The miss probability is statistically uniform and independent of the state dimensionality $k$, following $p_{miss} \approx 2^{-n_{ver}}$.
+The reliability of \gls{id}-based synchronization is governed by two distinct error models. For cryptographic hashing via \gls{sha}-256, the verifier is analyzed under the Random Oracle Model, where a truncated digest of length $n_{ver}$ behaves as a uniform random mapping. The miss probability is statistically uniform and independent of the state dimensionality $k$, following $p_{miss} \approx 2^{-n_{ver}}$.
 
-In contrast, the reliability of a single-layer \gls{rsid} is strictly constrained by the distance properties of polynomials over the Galois field $\mathbb{F}_{2^{n_{ver}}}$. For a state vector represented by $k$ symbols, the collision probability is upper-bounded by $\lambda_2 \le (k-1)/2^{n_{ver}}$. This structural dependency implies that as the payload dimensionality $k$ increases, the verifier must distinguish a larger set of potentially intersecting curves, which leads to the phenomenon of algebraic saturation.
+In contrast, the reliability of a single-layer \gls{rsid} is strictly constrained by the distance properties of polynomials over the Galois field $\mathbb{F}_{2^{n_{ver}}}$. For a state vector represented by $k$ symbols, the collision probability is upper-bounded by $\lambda_2 \le (k-1)/2^{n_{ver}}$. This structural dependency implies that as the payload dimensionality $k$ increases, the verifier must distinguish a larger set of potentially intersecting curves, which exposes a field-size limitation in the single-layer polynomial construction.
 
-\subsection{Algebraic Saturation and the Role of Concatenation}
+\subsection{Field-Size Limitation and the Role of Concatenation}
 \label{subsec:algebraic_limit}
 
-A critical bottleneck in the rudimentary polynomial model is that the size of the evaluation field $Q = 2^{n_{ver}}$ must be significantly larger than the number of state symbols $k$. In a single-layer construction, the miss probability is bounded by $P_{miss} \le (k-1)/Q$. If the state dimensionality $k$ approaches or exceeds $Q$, the field becomes saturated, rendering it mathematically impossible to guarantee a seed $r$ that distinguishes two distinct states via a single sample. Under such conditions, the verifier size $n_{ver}$ must grow logarithmically with the data size ($n_{ver} > \log_2 k$) to maintain any meaningful reliability.
+A critical bottleneck in the rudimentary polynomial model is that the size of the evaluation field $Q = 2^{n_{ver}}$ must be significantly larger than the number of state symbols $k$. In a single-layer construction, the miss probability is bounded by $P_{miss} \le (k-1)/Q$. If the state dimensionality $k$ approaches or exceeds $Q$, the verifier space becomes too small, rendering it mathematically impossible to guarantee a seed $r$ that distinguishes two distinct states via a single sample. Under such conditions, the verifier size $n_{ver}$ must grow logarithmically with the data size ($n_{ver} > \log_2 k$) to maintain any meaningful reliability.
 
 To overcome this limit without increasing the transmitted verifier length, we employ Concatenated RS Codes. This construction operates over a virtual extension field $GF(Q^{m})$, where $m$ represents the concatenation depth. By treating the state as a polynomial over this expanded field, the effective algebraic constraint is pushed to an exponentially larger field $Q_{eff} = Q^m$. 
 
@@ -172,7 +172,7 @@ The suppression of the miss probability under concatenation can be demonstrated 
 \begin{equation}
     P_{miss, RSID} \le \frac{k_{outer}-1}{Q^{m}}
 \end{equation}
-where $k_{outer}$ denotes the number of symbols in the outer code. Since $Q^m = (2^{n_{ver}})^m$, the denominator grows exponentially with the depth $m$. Even for a moderate depth of $m=2$, the expanded field $Q^2$ far exceeds the typical state dimensionality $k_{outer}$ found in robotic telemetry. In the regime where $Q^m \gg k_{outer}$, the term $(k_{outer}-1)/Q^m$ becomes negligible, allowing the algebraic verifier's reliability to be governed primarily by the entropy of the final truncated output rather than the data size. 
+where $k_{outer}$ denotes the number of symbols in the outer code. Since $Q^m = (2^{n_{ver}})^m$, the denominator grows exponentially with the depth $m$. Even for a moderate depth of $m=2$, the expanded field $Q^2$ far exceeds the typical state dimensionality $k_{outer}$ found in robotic telemetry. When $Q^m \gg k_{outer}$, the term $(k_{outer}-1)/Q^m$ becomes negligible, allowing the algebraic verifier's reliability to be governed primarily by the truncation length $n_{ver}$ rather than the data size. 
 
 Consequently, the concatenated \glsentryshort{rsid} provides a deterministic error bound that is numerically comparable to the $2^{-n_{ver}}$ statistical performance of \gls{sha}-256. This structural decoupling allows the protocol to approach the theoretical double exponential limit established by Ahlswede and Dueck, enabling the verifier length to scale as $O(\log \log k)$ rather than $O(\log k)$. This ensures that for high-dimensional sensor data, the algebraic backend maintains collision resistance equivalent to cryptographic hashing while preserving the inherent advantage of provable safety bounds.
 
@@ -181,7 +181,7 @@ Consequently, the concatenated \glsentryshort{rsid} provides a deterministic err
 
 The choice between these mechanisms involves a fundamental tension. From a reliability perspective, \gls{rsid} provides a rigorous, deterministic upper bound $\lambda_2$ on the error probability, ensuring that no pair of states exceeds a worst-case threshold regardless of the input distribution. This is essential for control loops where pathological failures must be handled analytically.
 
-However, this mathematical guarantee incurs significant computational complexity due to the finite-field arithmetic over extension fields, which scales with data size. In contrast, \gls{sha}-256 is optimized for high throughput and provides payload-independent encoding latency. This thesis therefore utilizes \gls{rsid} as the theoretical reference for high-reliability control signals, while leveraging \gls{sha}-256 to demonstrate scalability for bandwidth-heavy sensor payloads such as \gls{lidar}.
+However, this mathematical guarantee incurs significant computational complexity due to the finite-field arithmetic over extension fields, which scales with data size. In contrast, \gls{sha}-256 is optimized for high throughput and provides payload-independent encoding latency. This thesis therefore utilizes \gls{rsid} as the theoretical reference for high-reliability control signals, while using \gls{sha}-256 to demonstrate scalability for bandwidth-heavy sensor payloads such as \gls{lidar}.
 % ==================================================================================
 % Section 2.6: K-ID
 % ==================================================================================
@@ -216,7 +216,7 @@ Here, $K$ is not a physical distance; it measures the size of the \enquote{colli
     p_{miss} \approx \frac{K}{2^{n_{ver}}}.
     \label{eq:pmiss_law}
 \end{equation}
-When $K$ approaches or exceeds $2^{n_{ver}}$, the verifier space becomes saturated and reliable identification cannot be guaranteed.
+When $K$ approaches or exceeds $2^{n_{ver}}$, the verifier space is too small and reliable identification cannot be guaranteed.
 
 The \gls{kid} protocol suppresses \emph{full-state recovery transmissions} as long as the physical error remains within tolerance ($|e|\le R$). When the drift exceeds the tolerance ($|e|>R$), recovery should be triggered; a miss occurs if the drifted state falls within the $K$ admissible states that map to an acceptable verifier outcome.
 
@@ -228,14 +228,14 @@ Consider a practical example of an autonomous robot (or vehicle) navigating a pu
 \subsection{Human-Robot Collaboration and Jitter}
 This logic extends beyond simple velocity constraints to more complex spatial and interactive scenarios. For instance, in \gls{hrc}, the exact coordinates of a robotic arm are less critical than ensuring the end-effector remains outside a defined ``human safety bubble''~\cite{9013428}. Similarly, for high-precision assembly tasks involving compliant mechanisms, the robot may exhibit minor high-frequency vibrations (jitter) that are mechanically acceptable. Standard \gls{id} would treat these micro-vibrations as errors, whereas \gls{kid} can be tuned to ignore high-frequency noise while still detecting significant trajectory deviations.
 
-By shifting the verification paradigm from data exactness to semantic compliance, \gls{kid} aligns the synchronization protocol with the actual control objectives. It allows the system to filter out benign variability, including speed fluctuations, sensor noise, and compliant jitter, and to focus limited communication resources on detecting genuine safety violations. In this thesis, we implement this semantic verification using randomized encoding under edge constraints.
+By shifting the verification criterion from data exactness to semantic compliance, \gls{kid} aligns the synchronization protocol with the actual control objectives. It allows the system to filter out benign variability, including speed fluctuations, sensor noise, and compliant jitter, and to focus limited communication resources on detecting genuine safety violations. In this thesis, we implement this semantic verification using randomized encoding under edge constraints.
 
 \subsection{Discussion: Trading Freshness for Value}
 \label{subsec:aoi_voi_tradeoff}
 
 The scenarios described above illustrate a deviation from traditional network optimization. Conventional real-time protocols often aim to minimize the \gls{aoi}~\cite{kaul2012real}, keeping the \gls{dt}'s estimate as fresh as possible regardless of content. Under an \gls{aoi}-minimization strategy, the robot would transmit its velocity continuously even when cruising steadily within the safe corridor, purely to prevent the timestamp from ``aging.''
 
-\gls{kid} challenges this paradigm by introducing a semantic filter that prioritizes the \gls{voi} over simple freshness. As demonstrated in the autonomous driving case, a ``stale'' position estimate (high \gls{aoi}) that remains within the safety tolerance $\mathcal{B}$ retains its utility for the control loop. By allowing \gls{aoi} to increase during semantically safe intervals, \gls{kid} trades unnecessary freshness for bandwidth efficiency. This is consistent with goal-oriented communication~\cite{strinati2024goal}, where the objective shifts from minimizing average latency to minimizing the latency of meaningful (unsafe) updates.
+\gls{kid} challenges this baseline by introducing a semantic filter that prioritizes the \gls{voi} over simple freshness. As demonstrated in the autonomous driving case, a ``stale'' position estimate (high \gls{aoi}) that remains within the safety tolerance $\mathcal{B}$ retains its utility for the control loop. By allowing \gls{aoi} to increase during semantically safe intervals, \gls{kid} trades unnecessary freshness for bandwidth efficiency. This is consistent with goal-oriented communication~\cite{strinati2024goal}, where the objective shifts from minimizing average latency to minimizing the latency of meaningful (unsafe) updates.
 
 % ==================================================================================
 % Section 2.7: Control-theoretic perspectives

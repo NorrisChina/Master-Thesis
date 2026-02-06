@@ -37,10 +37,10 @@ The identification-based protocol reduces communication load by verifying consis
 
 \vspace{0.25em}
 
-\subsection{Algebraic Saturation and the Role of Concatenation}
+\subsection{Field-Size Limitation and the Role of Concatenation}
 \label{subsec:algebraic_limit_ch3}
 
-A critical bottleneck in the rudimentary polynomial model is that the size of the evaluation field $Q = 2^{n_{ver}}$ must be significantly larger than the number of state symbols $k$. In a single-layer construction, the miss probability is bounded by $P_{miss} \le (k-1)/Q$. If the state dimensionality $k$ approaches or exceeds $Q$, the field becomes saturated, rendering it mathematically impossible to guarantee a seed $r$ that distinguishes two distinct states via a single sample. Under such conditions, the verifier size $n_{ver}$ must grow logarithmically with the data size ($n_{ver} > \log_2 k$) to maintain any meaningful reliability.
+A critical bottleneck in the rudimentary polynomial model is that the size of the evaluation field $Q = 2^{n_{ver}}$ must be significantly larger than the number of state symbols $k$. In a single-layer construction, the miss probability is bounded by $P_{miss} \le (k-1)/Q$. If the state dimensionality $k$ approaches or exceeds $Q$, the verifier space becomes too small, rendering it mathematically impossible to guarantee a seed $r$ that distinguishes two distinct states via a single sample. Under such conditions, the verifier size $n_{ver}$ must grow logarithmically with the data size ($n_{ver} > \log_2 k$) to maintain any meaningful reliability.
 
 To overcome this limit without increasing the transmitted verifier length, concatenated RS codes are used. This construction operates over a virtual extension field $GF(Q^{m})$, where $m$ represents the concatenation depth. By treating the state as a polynomial over this expanded field, the effective algebraic constraint is pushed to an exponentially larger field $Q_{eff} = Q^m$. 
 
@@ -48,7 +48,7 @@ The suppression of the miss probability under concatenation can be demonstrated 
 \begin{equation}
     P_{miss, RSID} \le \frac{k_{outer}-1}{Q^{m}}
 \end{equation}
-where $k_{outer}$ denotes the number of symbols in the outer code. Since $Q^m = (2^{n_{ver}})^m$, the denominator grows exponentially with the depth $m$. Even for a moderate depth of $m=2$, the expanded field $Q^2$ far exceeds the typical state dimensionality $k_{outer}$ found in robotic telemetry. In the regime where $Q^m \gg k_{outer}$, the term $(k_{outer}-1)/Q^m$ becomes negligible, allowing the algebraic verifier's reliability to be governed primarily by the entropy of the final truncated output rather than the data size. 
+where $k_{outer}$ denotes the number of symbols in the outer code. Since $Q^m = (2^{n_{ver}})^m$, the denominator grows exponentially with the depth $m$. Even for a moderate depth of $m=2$, the expanded field $Q^2$ far exceeds the typical state dimensionality $k_{outer}$ found in robotic telemetry. When $Q^m \gg k_{outer}$, the term $(k_{outer}-1)/Q^m$ becomes negligible, allowing the algebraic verifier's reliability to be governed primarily by the truncation length $n_{ver}$ rather than the data size. 
 
 Consequently, concatenated \gls{rsid} provides a deterministic error bound that is numerically comparable to the $2^{-n_{ver}}$ statistical performance of \gls{sha}-256. This structural decoupling allows the protocol to approach the theoretical double exponential limit established by Ahlswede and Dueck, enabling the verifier length to scale as $O(\log \log k)$ rather than $O(\log k)$. For high-dimensional sensor data, this yields collision resistance comparable to cryptographic hashing while preserving the advantage of provable safety bounds.
 
@@ -117,7 +117,7 @@ Based on the theoretical bounds derived in Section~\ref{subsec:error_models}, th
     p_{miss}(R, n_{ver}) \approx \frac{K}{2^{n_{ver}}}.
     \label{eq:pmiss_kid_law}
 \end{equation}
-This implies that the safety risk scales linearly with the acceptance-set size $K$, emphasizing the importance of the entropy-saturation constraint ($K < 2^{n_{ver}}$) to avoid deterministic synchronization failure.
+This implies that the safety risk scales linearly with the acceptance-set size $K$, emphasizing the importance of the verifier-space constraint ($K < 2^{n_{ver}}$) to avoid deterministic synchronization failure.
 
 To relate these parameters to end-to-end performance, the expected latency $T_{KID}$ is defined as a function of the tolerance radius $R$. Assuming the prediction error follows a Gaussian distribution $\mathcal{N}(0, \sigma^2)$, the probability of an unsafe deviation is $p_{unsafe}(R) = \Pr(|E_t| > R)$. The total latency is then modeled as:
 \begin{equation}
@@ -161,7 +161,7 @@ At each discrete simulation tick, the protocol enforces the \gls{kid} semantic g
 \end{equation}
 When $|E_t| > R$, the robot transmits a verifier $v_t$. The \gls{dt} validates $v_t$ against the acceptance set $\mathcal{A}_R$ centered at $\hat{S}_t$. If a collision occurs (Type~II error), the system suffers a \textit{safety miss}: the \gls{dt} erroneously accepts the outdated state $\hat{S}_t$, allowing the unsynchronized drift to persist and potentially escalate. Conversely, a successful verification triggers a fallback, resetting the estimate $\hat{S}_t \leftarrow S_t$ and restoring the synchronization error to zero.
 
-To align this dynamic simulation with the reliability analysis established in Chapter~2, the probability of collision during verification events is governed by the entropy-saturation limit. As established in Equation~\ref{eq:pmiss_kid_law}, the miss probability is approximated by:
+To align this dynamic simulation with the reliability analysis established in Chapter~2, the probability of collision during verification events is governed by the verifier-space constraint. As established in Equation~\ref{eq:pmiss_kid_law}, the miss probability is approximated by:
 \begin{equation}
     p_{miss}(R, n_{ver}) \approx \frac{K}{2^{n_{ver}}},
 \end{equation}

@@ -96,12 +96,12 @@ The simulation models the robot's state as a continuous random variable constrai
 
 The baseline Gaussian model is centered at the domain midpoint with a standard deviation of $\sigma=16.0$. This parameter choice maximizes utilization of the physical state space without violating boundaries, ensuring that the simulation includes rare but safety-relevant tail events. For the comparative Uniform model, a variance-matching constraint is applied to isolate the effect of bounded support. For a symmetric uniform distribution on $[-a,a]$, $\mathrm{Var}=a^2/3$; equating $a^2/3=\sigma^2$ yields $a=\sqrt{3}\,\sigma\approx 27.71$.
 
-This half-width defines a \emph{safe-harbor} threshold: choosing $R\ge a$ guarantees $|e|\le R$ for all samples under the Uniform model and therefore eliminates tolerance violations by construction.
+This half-width defines a \emph{bounded-support threshold}: choosing $R\ge a$ guarantees $|e|\le R$ for all samples under the Uniform model and therefore makes tolerance violations impossible by construction.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=1.0\textwidth]{figures/error_models_sigma16.png}
-    \caption{Visual comparison of the variance-matched error models configured with $\sigma=16$. The Gaussian baseline (a) maximizes physical space utilization within the domain bounds $[2, 98]$, preventing truncation artifacts while maintaining high noise energy. The Uniform model (b) illustrates the safe-harbor threshold: the selected tolerance radius of 30 exceeds the noise support, guaranteeing zero tolerance-violation risk under the Uniform model, whereas the Gaussian model retains residual tail risks outside the tolerance zone.}
+    \caption{Visual comparison of the variance-matched error models configured with $\sigma=16$. The Gaussian baseline (a) maximizes physical space utilization within the domain bounds $[2, 98]$, preventing truncation artifacts while maintaining high noise energy. The Uniform model (b) illustrates the bounded-support threshold: the selected tolerance radius of 30 exceeds the noise support, guaranteeing zero tolerance-violation risk under the Uniform model, whereas the Gaussian model retains residual tail risk outside the tolerance zone.}
     \label{fig:error_models}
 \end{figure}
 
@@ -115,14 +115,14 @@ The results of this sensitivity sweep reveal a scalability bottleneck governed b
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.72\linewidth,height=0.32\textheight,keepaspectratio]{figures/decoder_cost_multiline_annotated.png}
-    \caption{Computational scalability analysis showing decoder latency as a function of quantization resolution $\Delta$. The red curve represents the safe-harbor configuration ($R=30$). At the high-precision limit ($\Delta=0.01$), latency reaches a prohibitive 12.8 ms. However, at the selected operating point ($\Delta=0.1$, indicated by the vertical dotted line), the latency drops to approximately 1.3 ms, balancing maximum physical coverage with real-time computational feasibility.}
+    \caption{Computational scalability analysis showing decoder latency as a function of quantization resolution $\Delta$. The red curve represents the bounded-support configuration ($R=30$). At the high-precision limit ($\Delta=0.01$), latency reaches a prohibitive 12.8 ms. However, at the selected operating point ($\Delta=0.1$, indicated by the vertical dotted line), the latency drops to approximately 1.3 ms, balancing physical coverage with real-time computational feasibility.}
     \label{fig:decoder_scalability}
 \end{figure}
 
 \subsection{System Configuration and Visualization}
 \label{subsec:param_config}
 
-The primary simulation assumes a payload of 4001 bits transmitted over a 1 Mbps link. The evaluation framework employs the physical tolerance radius $R$ as the primary independent variable to maintain a direct mapping to robotic safety requirements. The sweep uses $R\in\{2,5,10,20,30\}$. The largest value is motivated by the Uniform half-width derived above ($a\approx 27.71$), which provides a boundary condition where tolerance violations vanish under bounded noise.
+The primary simulation assumes a payload of 4001 bits transmitted over a 1 Mbps link. The evaluation framework employs the physical tolerance radius $R$ as the primary independent variable to maintain a direct mapping to robotic safety requirements. The sweep uses $R\in\{2,5,10,20,30\}$. The largest value is motivated by the Uniform half-width derived above ($a\approx 27.71$), which provides a boundary condition where tolerance violations are impossible under bounded noise.
 
 To analyze the trade-off space, a dual visualization strategy is employed. Raw simulation results are mapped onto a grid defined by verifier length and physical tolerance to display speedup factors and risk probabilities. These points are subsequently projected onto a risk-vs-speedup scatter plot to extract the Pareto frontier.
 

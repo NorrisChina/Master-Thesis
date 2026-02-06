@@ -186,6 +186,7 @@
 	acronym,%
 	symbols,%
 	nomain,%
+	savenumberlist=true,%
 	nogroupskip,%
 	toc,%
 	section=section,%
@@ -320,11 +321,20 @@
 
 % Acronym table style with page numbers.
 % Uses a narrow, wrapped rightmost column to avoid overfull boxes.
+\newlength{\acropagecolwidth}
 \newglossarystyle{acrotabularxpages}{%
 	\renewenvironment{theglossary}{%
 		\par\setlength{\parindent}{0pt}\noindent%
-		\setlength{\tabcolsep}{0.3em}%
-		\tabularx{\linewidth}{@{}lX>{\raggedleft\arraybackslash}p{0.16\linewidth}@{}}%
+		\small%
+		\setlength{\hfuzz}{12pt}% suppress minor overfull warnings in long acronym lists
+		\sloppy\emergencystretch=1em%
+		\renewcommand*{\delimN}{,\allowbreak\space}% allow breaks in page lists
+		\renewcommand*{\delimR}{--\allowbreak}% allow breaks after page ranges
+		% Make the location list breakable inside the table cell.
+		\renewcommand*{\glossaryentrynumbers}[1]{\hspace{0pt}####1}%
+		\setlength{\acropagecolwidth}{0.36\linewidth}%
+		\setlength{\tabcolsep}{0.3em}% readable separation between columns
+		\tabularx{\linewidth}{@{}lX>{\raggedleft\arraybackslash}p{\acropagecolwidth}@{}}%
 	}{%
 		\endtabularx\par\bigskip%
 	}%
@@ -334,8 +344,8 @@
 	\renewcommand*{\glossentry}[2]{%
 		\glsentryitem{##1}% Entry number if required
 		\glstarget{##1}{\sffamily\bfseries\glossentryname{##1}} &
-		\glsentrydesc{##1} &
-		{\scriptsize ##2}\tabularnewline
+		\hspace{1em}\glsentrydesc{##1} &
+		{\scriptsize\hspace{0pt}##2}\tabularnewline
 	}%
 }
 % ===============================================
